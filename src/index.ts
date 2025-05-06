@@ -2,5 +2,10 @@ export {
   FormStoreProvider,
   createFormStore,
   createFormController,
-  useFormStoreApi,
+  useFormStoreContext,
+  getDefaultForm,
+  createFormComputer,
+  withForm,
 } from './utils';
+export type { FormController } from './utils';
+export type { FormState, DeepKeys, DeepValue } from './types';

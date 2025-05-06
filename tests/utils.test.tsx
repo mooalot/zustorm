@@ -9,13 +9,13 @@ import {
   createFormStore,
   FormStoreProvider,
   getDefaultForm,
-  useFormStoreApi,
+  useFormStoreContext,
 } from '../src/utils';
-import { WithForm } from '../src/types';
+import { FormState } from '../src/types';
 
 // Mock components for testing
 const MockChild = () => {
-  const store = useFormStoreApi();
+  const store = useFormStoreContext();
   const state = store.getState();
   return <div data-testid="form-state">{JSON.stringify(state)}</div>;
 };
@@ -24,7 +24,9 @@ describe('form.utils', () => {
   it('should create a form store with default values', () => {
     const schema = z.object({ name: z.string() });
     const defaultValues = { name: 'Test' };
-    const formStore = createFormStore(defaultValues, schema);
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
 
     const state = formStore.getState();
     expect(state.values).toEqual(defaultValues);
@@ -36,7 +38,9 @@ describe('form.utils', () => {
   it('should validate form values against schema', () => {
     const schema = z.object({ name: z.string() });
     const defaultValues = { name: '' };
-    const formStore = createFormStore(defaultValues, schema);
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
 
     const state = formStore.getState();
     expect(state.isValid).toBe(true);
@@ -45,7 +49,9 @@ describe('form.utils', () => {
   it('should provide form context through FormStoreProvider', () => {
     const schema = z.object({ name: z.string() });
     const defaultValues = { name: 'Test' };
-    const formStore = createFormStore(defaultValues, schema);
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
 
     render(
       <FormStoreProvider store={formStore}>
@@ -60,7 +66,9 @@ describe('form.utils', () => {
   it('should create a form controller and handle changes', () => {
     const schema = z.object({ name: z.string() });
     const defaultValues = { name: 'Test' };
-    const formStore = createFormStore(defaultValues, schema);
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
 
     const FormController = createFormController(formStore);
 
@@ -105,12 +113,12 @@ describe('form.utils', () => {
 
   it('should create a plain zustand store and use form controller to access it', () => {
     const defaultValues = { name: 'Plain Store Test' };
-    const computer = createFormComputer<{ form: WithForm<{ name: string }> }>()(
-      {
-        formPath: 'form',
-        getSchema: () => z.object({ name: z.string() }),
-      }
-    );
+    const computer = createFormComputer<{
+      form: FormState<{ name: string }>;
+    }>()({
+      formPath: 'form',
+      getSchema: () => z.object({ name: z.string() }),
+    });
     const plainStore = createStore(
       computer(() => ({
         form: getDefaultForm(defaultValues),
@@ -153,7 +161,9 @@ describe('form.utils', () => {
   it('should be able to create a form controller with custom path', () => {
     const schema = z.object({ user: z.object({ name: z.string() }) });
     const defaultValues = { user: { name: 'Test' } };
-    const formStore = createFormStore(defaultValues, schema);
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
 
     const FormController = createFormController(formStore, {
       name: 'user',
@@ -190,12 +200,12 @@ describe('form.utils', () => {
 
   it('should be able to pass a custom form path to the Form provider', () => {
     const defaultValues = { name: 'Plain Store Test' };
-    const computer = createFormComputer<{ form: WithForm<{ name: string }> }>()(
-      {
-        formPath: 'form',
-        getSchema: () => z.object({ name: z.string() }),
-      }
-    );
+    const computer = createFormComputer<{
+      form: FormState<{ name: string }>;
+    }>()({
+      formPath: 'form',
+      getSchema: () => z.object({ name: z.string() }),
+    });
     const plainStore = createStore(
       computer(() => ({
         form: getDefaultForm(defaultValues),
@@ -204,7 +214,7 @@ describe('form.utils', () => {
 
     // create a mock component and its parent component
     const MockChild = () => {
-      const store = useFormStoreApi<{ name: string }>();
+      const store = useFormStoreContext<{ name: string }>();
       const FormController = createFormController(store);
 
       return (
@@ -240,7 +250,7 @@ describe('form.utils', () => {
   it('should be able to pass a custom name to the form provider', () => {
     const defaultValues = { user: { name: 'Plain Store Test' } };
     const computer = createFormComputer<{
-      form: WithForm<{ user: { name: string } }>;
+      form: FormState<{ user: { name: string } }>;
     }>()({
       formPath: 'form',
       getSchema: () => z.object({ user: z.object({ name: z.string() }) }),
@@ -253,7 +263,7 @@ describe('form.utils', () => {
 
     // create a mock component and its parent component
     const MockChild = () => {
-      const store = useFormStoreApi<{ name: string }>();
+      const store = useFormStoreContext<{ name: string }>();
       const FormController = createFormController(store);
 
       return (

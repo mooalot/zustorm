@@ -65,20 +65,38 @@ type DeepValueFromStringPath<
     : never
   : never;
 
-export type WithForm<T> = {
+export type FormState<T> = {
+  /**
+   * The current values of the form fields.
+   */
   values: T;
+  /**
+   * The errors of the form fields. Currently only supports Zod errors.
+   */
   errors?: ZodFormattedError<T>;
-  touched?: Touches<T>;
+  /**
+   * The touched state of the form fields.
+   */
+  isTouched: boolean;
+  /**
+   * If the form is valid. This is a boolean value that indicates if the form is valid or not.
+   */
   isValid: boolean;
+  /**
+   * If the form is submitting. This is a boolean value that indicates if the form is currently submitting or not.
+   * This value is here to be used when needed. You'll have to set it manually.
+   */
   isSubmitting: boolean;
+  /**
+   * If the form is dirty. This is a boolean value that indicates if the form is dirty or not.
+   */
   isDirty: boolean;
-  schema?: ZodType<T>;
 };
 
-type Touch<T> = {
-  _touched: boolean;
-} & Touches<T>;
+// type Touch<T> = {
+//   _touched: boolean;
+// } & Touches<T>;
 
-export type Touches<T> = {
-  [K in keyof T]?: Touch<T[K]>;
-};
+// export type Touches<T> = {
+//   [K in keyof T]?: Touch<T[K]>;
+// };

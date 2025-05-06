@@ -1,5 +1,6 @@
 import { produce, WritableDraft } from 'immer';
-import { get, set } from 'lodash-es';
+import { get, isEqual, set } from 'lodash-es';
+import { isChanged } from 'proxy-compare';
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { z, ZodFormattedError } from 'zod';
 import {
@@ -9,103 +10,45 @@ import {
   StoreMutatorIdentifier,
   useStore as useStore2,
 } from 'zustand';
-import { shallow } from 'zustand/shallow';
-import { DeepKeys, DeepValue, WithForm } from './types';
-
-type Write<T, U> = Omit<T, keyof U> & U;
-type WithComputed<S, A> = S extends { getState: () => infer T }
-  ? Write<S, Compute<T, A>>
-  : never;
-
-declare module 'zustand/vanilla' {
-  interface StoreMutators<S, A> {
-    'forms/computer': WithComputed<S, A>;
-  }
-}
-
-/**Middleware */
+import { DeepKeys, DeepValue, FormState } from './types';
 
 type Computed = <T extends object, K extends keyof T>(
-  computed: Compute<T, Pick<T, K>>,
-  options?: Options<T>
+  computed: Compute<T, Pick<T, K>>
 ) => <
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = []
 >(
-  creator: StateCreator<T, [...Mps, ['forms/computer', unknown]], Mcs>
-) => StateCreator<T, Mps, [['forms/computer', Pick<T, K>], ...Mcs]>;
+  creator: StateCreator<T, [...Mps], Mcs>
+) => StateCreator<T, Mps, [...Mcs]>;
 
-export type Compute<T, A> = (state: T) => A;
+type Compute<T, A> = (state: T) => A;
 
-export type Options<T> = {
-  /**
-   * An array of keys that the computed function depends on. If any of these keys changed, the computed function will be re-run.
-   */
-  keys?: (keyof T)[];
-  /**
-   * Disable the Proxy object that tracks which selectors are accessed. This is useful if you want to disable the Proxy object for nested changes.
-   */
-  disableProxy?: boolean;
-  /**
-   * A custom equality function to determine if the computed state has changed. By default, a shallow equality check is used.
-   */
-  equalityFn?: (a: any, b: any) => boolean;
-};
-
-export function produceStore<T>(
+function produceStore<T>(
   useStore: { setState: StoreApi<T>['setState'] },
   producer: (draft: WritableDraft<T>) => void
 ) {
   useStore.setState((state) => produce(state, producer));
 }
 
-/**
- * A middleware that creates a computed state object.
- */
-export const createComputer =
-  createComputerImplementation as unknown as Computed;
+const createComputer = createComputerImplementation as unknown as Computed;
 function createComputerImplementation<T extends object, K extends keyof T>(
-  compute: Compute<T, Pick<T, K>>,
-  opts: Options<T> = {}
+  compute: Compute<T, Pick<T, K>>
 ): (creator: StateCreator<T>) => StateCreator<T> {
   return (creator) => {
     return (set, get, api) => {
-      const trackedSelectors = new Set<string | number | symbol>();
+      const affected = new WeakMap();
 
-      const equalityFn = opts?.equalityFn ?? shallow;
-
-      if (opts?.keys) {
-        const selectorKeys = opts.keys;
-        for (const key of selectorKeys) {
-          trackedSelectors.add(key);
-        }
-      }
-
-      const useSelectors = opts?.disableProxy !== true || !!opts?.keys;
-      const useProxy = opts?.disableProxy !== true && !opts?.keys;
-
-      const computeAndMerge = (state: T): T => {
-        const stateProxy = new Proxy(
-          { ...state },
-          {
-            get: (_, prop) => {
-              trackedSelectors.add(prop);
-              return state[prop as keyof T];
-            },
-          }
+      const isTrackedEqual = (next: T, prev: T) =>
+        !isChanged(
+          prev,
+          next,
+          affected,
+          new WeakMap(),
+          isEqual as (a: unknown, b: unknown) => boolean
         );
 
-        // calculate the new computed state
-        const computedState = compute(useProxy ? stateProxy : { ...state });
-        const newState = { ...computedState };
-
-        for (const key in newState) {
-          if (equalityFn(newState[key], state[key])) {
-            newState[key] = state[key];
-          }
-        }
-        return { ...state, ...newState };
-      };
+      const computeAndMerge = (state: T) =>
+        Object.assign({}, state, compute(state));
 
       type SetState = StoreApi<T>['setState'];
       const setWithComputed = (set: SetState): SetState => {
@@ -115,21 +58,9 @@ function createComputerImplementation<T extends object, K extends keyof T>(
             typeof state === 'function' ? state(prevState) : state;
           const newState = { ...prevState, ...nextPartialState };
 
-          const changedKeys: string[] = [];
-          for (const key in newState) {
-            if (prevState[key] !== newState[key]) {
-              changedKeys.push(key);
-            }
-          }
-          if (
-            useSelectors &&
-            trackedSelectors.size !== 0 &&
-            !changedKeys.some((k) => trackedSelectors.has(k))
-          ) {
-            set(newState);
-          } else {
+          if (!isTrackedEqual(newState, prevState))
             set(computeAndMerge(newState));
-          }
+          else set(newState);
         };
       };
 
@@ -149,37 +80,65 @@ function safeGet(obj: any, path: any, defaultValue?: any) {
 
 function safeSet(obj: any, path: any, value: any) {
   if (!path || (Array.isArray(path) && path.length === 0)) {
-    return obj;
+    return Object.assign(obj, value);
   }
   return set(obj, path, value);
 }
 
 export type FormRenderProps<T, A, F> = {
+  /**
+   * The value of the field. This is the value that is stored in the form state.
+   */
   value: T;
+  /**
+   * The function to call when the value changes.
+   * It can be a value or a function that returns a value.
+   */
   onChange: (value: T | ((value: T) => T), form?: F | ((form: F) => F)) => void;
+  /**
+   * The function to call when the input is blurred.
+   * It can be used to trigger validation or other side effects.
+   */
+  onBlur?: () => void;
+  /**
+   * The error object for the field.
+   */
   error?: ZodFormattedError<T>;
+  /**
+   * The context object for the field. Evaluated from the contextSelector.
+   */
   context: A;
 };
 
 export type FormController<T> = {
   <K extends DeepKeys<T> | undefined = undefined, C = undefined>(props: {
+    /**
+     * The name of the field. This is used to identify the field in the form state.
+     * It can be a string or an array of strings.
+     */
     name?: K;
+    /**
+     * The context selector function. This function is used to select the context for the field.
+     */
     contextSelector?: (state: T) => C;
+    /**
+     * The functional component that renders the field.
+     */
     render: (
       props: FormRenderProps<
         K extends DeepKeys<T> ? DeepValue<T, K> : T,
         C extends undefined ? undefined : C,
         T
       >
-    ) => React.ReactNode;
-  }): React.ReactNode;
+    ) => JSX.Element;
+  }): JSX.Element;
 };
 
 export function createFormController<
   S,
   K extends DeepKeys<S> | undefined = undefined,
   V = K extends DeepKeys<S> ? DeepValue<S, K> : S,
-  U = V extends WithForm<infer X> ? X : never,
+  U = V extends FormState<infer X> ? X : never,
   EN extends DeepKeys<U> | undefined = undefined
 >(
   /**
@@ -199,7 +158,7 @@ export function createFormController<
      */
     name?: EN;
     /**
-     * The function to use the store
+     * The function to use the store (e.g. useStore, useStoreWithEqualityFn, etc).
      */
     useStore?: (storeApi: StoreApi<S>, callback: (selector: S) => any) => any;
   }
@@ -237,7 +196,7 @@ export function createFormController<
       state: any,
       value: any,
       ...segments: any[]
-    ): WithForm<U> {
+    ): FormState<U> {
       const filteredSegments = segments.filter(Boolean);
       const lastSegment = filteredSegments.pop();
       const target = filteredSegments.reduce((obj, segment) => {
@@ -253,10 +212,10 @@ export function createFormController<
       return state;
     }
 
-    function getForm(state: S): WithForm<U> {
+    function getForm(state: S): FormState<U> {
       return formPath
-        ? (safeGet(state, formPath) as WithForm<U>)
-        : (state as unknown as WithForm<U>);
+        ? (safeGet(state, formPath) as FormState<U>)
+        : (state as unknown as FormState<U>);
     }
 
     const value = useStore((state) => {
@@ -288,6 +247,12 @@ export function createFormController<
 
     return render({
       value,
+      onBlur: () => {
+        produceStore(store, (state) => {
+          const formState = getForm(state as S);
+          formState.isTouched = true;
+        });
+      },
       onChange: useCallback(
         (value, form) => {
           produceStore(store, (state) => {
@@ -323,6 +288,9 @@ export function createFormController<
                   : form;
               formState.values = newValues;
             }
+
+            formState.isDirty = true;
+            formState.isTouched = true;
           });
         },
         [store]
@@ -333,35 +301,82 @@ export function createFormController<
   };
 }
 
+export const withForm = <
+  S extends object,
+  K extends DeepKeys<S> | undefined,
+  F extends K extends DeepKeys<S> ? DeepValue<S, K> : S = K extends DeepKeys<S>
+    ? DeepValue<S, K>
+    : S,
+  Mps extends [StoreMutatorIdentifier, unknown][] = [],
+  Mcs extends [StoreMutatorIdentifier, unknown][] = []
+>(
+  creator: StateCreator<S, [...Mps], Mcs>,
+  options?: {
+    /**
+     * The path to the form in the store. Note: this will override whatever formpath in the store provider if used.
+     */
+    formPath?: K;
+    /**
+     * The function to get the schema for the form. This is useful for custom validation logic.
+     * It can be a function that returns a Zod schema or a Zod schema itself.
+     */
+    getSchema?: (
+      state: S
+    ) => z.ZodType<F extends FormState<infer F> ? F : never>;
+    /**
+     * A function that returns a boolean indicating if the form is valid.
+     * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
+     */
+    isValidCallback?: (
+      form: F extends FormState<infer F> ? F : never
+    ) => boolean;
+  }
+): StateCreator<S, Mps, [...Mcs]> => {
+  const computer = createFormComputer<S>()(options);
+  return computer(creator);
+};
+
 export function createFormComputer<S extends object>() {
   return function <
     K extends DeepKeys<S> | undefined,
     F extends K extends DeepKeys<S>
       ? DeepValue<S, K>
       : S = K extends DeepKeys<S> ? DeepValue<S, K> : S
-  >({
-    getSchema,
-    formPath,
-  }: {
-    getSchema: (
+  >(options?: {
+    /**
+     * The function to get the schema for the form. This is useful for custom validation logic.
+     * It can be a function that returns a Zod schema or a Zod schema itself.
+     */
+    getSchema?: (
       state: S
-    ) => z.ZodType<F extends WithForm<infer F> ? F : never> | undefined;
+    ) => z.ZodType<F extends FormState<infer F> ? F : never> | undefined;
+    /**
+     * The path to the form in the store. Note: this will override whatever formpath in the store provider if used.
+     */
     formPath?: K;
+    /**
+     * A function that returns a boolean indicating if the form is valid.
+     * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
+     */
+    isValidCallback?: (
+      form: F extends FormState<infer F> ? F : never
+    ) => boolean;
   }) {
+    const { formPath, getSchema, isValidCallback } = options || {};
     return createComputer<S, keyof S>((state) => {
       const schema = getSchema?.(state);
-
       return produce(state, (draft) => {
-        const form = safeGet(draft, formPath ?? '') as WithForm<F>;
-
-        if (!form) return; // Avoid modifying undefined
+        const form = safeGet(draft, formPath ?? '') as FormState<any>;
+        if (!form) return;
 
         const errors = (schema ?? z.object({})).safeParse(form.values);
         const errorsFormatted = errors.error?.format();
 
-        set(draft, formPath ?? [], {
+        safeSet(draft, formPath, {
           ...form,
-          isValid: errors.success,
+          isValid: isValidCallback
+            ? isValidCallback(form as F extends FormState<infer F> ? F : never)
+            : errors.success,
           errors: errorsFormatted,
         });
       });
@@ -369,30 +384,35 @@ export function createFormComputer<S extends object>() {
   };
 }
 
-export type FormStore<T> = WithForm<T>;
-
-export function getDefaultForm<T extends object>(value: T): WithForm<T> {
+export function getDefaultForm<T extends object>(values: T): FormState<T> {
   return {
     isValid: true,
     isDirty: false,
+    isTouched: false,
     isSubmitting: false,
-    values: value,
+    values,
   };
 }
 
 export const createFormStore = <T extends object>(
-  props: T,
-  schema?: z.ZodType<T>
+  initialValue: T,
+  options?: {
+    /**
+     * The function to get the schema for the form. This is useful for custom validation logic.
+     * It can be a function that returns a Zod schema or a Zod schema itself.
+     */
+    getSchema?: (state: FormState<T>) => z.ZodType<T>;
+    /**
+     * A function that returns a boolean indicating if the form is valid.
+     * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
+     */
+    isValidCallback?: (form: FormState<T>) => boolean;
+  }
 ) => {
-  const formComputer = createFormComputer<FormStore<T>>()({
-    getSchema: (state) => state.schema as any,
-  });
+  const formComputer = createFormComputer<FormState<T>>()(options as any);
 
-  return createStore<FormStore<T>>()(
-    formComputer(() => ({
-      ...getDefaultForm(props),
-      schema,
-    }))
+  return createStore<FormState<T>>()(
+    formComputer(() => getDefaultForm(initialValue))
   );
 };
 
@@ -411,7 +431,7 @@ export const FormStoreProvider = <
   T,
   K extends DeepKeys<T> | undefined = undefined,
   V = K extends DeepKeys<T> ? DeepValue<T, K> : T,
-  U = V extends WithForm<infer X> ? X : never,
+  U = V extends FormState<infer X> ? X : never,
   EN extends DeepKeys<U> | undefined = undefined
 >({
   children,
@@ -448,11 +468,11 @@ export const FormStoreProvider = <
   );
 };
 
-export function useFormStoreApi<S>() {
-  const store = useContext(FormStoreContext) as StoreApi<FormStore<S>>;
+export function useFormStoreContext<S>() {
+  const store = useContext(FormStoreContext) as StoreApi<FormState<S>>;
   if (!store) {
     throw new Error(
-      'useFieldStoreContext must be used within FieldStoreProvider'
+      'useFormStoreContext must be used within FormStoreProvider'
     );
   }
   return store;
