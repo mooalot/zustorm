@@ -83,7 +83,7 @@ function FormComponent() {
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
                 style={{
-                  outline: error?._errors ? '1px solid red' : undefined,
+                  outline: error ? '1px solid red' : undefined,
                 }}
               />
             </li>
