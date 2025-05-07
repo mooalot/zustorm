@@ -1,10 +1,10 @@
 {
-  "name": "zustand-forms",
-  "version": "0.0.0",
+  "name": "zustorm",
+  "version": "0.0.1",
   "author": "Gabriel Saunders",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mooalot/zustand-forms"
+    "url": "https://github.com/mooalot/zustorm"
   },
   "type": "module",
   "main": "./dist/index.umd.js",
@@ -23,6 +23,7 @@
   "keywords": [
     "react",
     "zustand",
+    "form",
     "forms"
   ],
   "scripts": {

@@ -16,10 +16,13 @@ export default defineConfig({
       fileName: (format) => `index.${format}.js`, // Output file naming pattern
     },
     rollupOptions: {
-      // Externalize dependencies that shouldn't be bundled
-      external: [], // Add any external dependencies here
+      external: ['react', 'zustand', 'zod'],
       output: {
-        globals: {}, // Global variables for external dependencies
+        globals: {
+          react: 'React',
+          zustand: 'Zustand',
+          zod: 'Zod',
+        },
       },
     },
   },

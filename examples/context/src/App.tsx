@@ -6,7 +6,7 @@ import {
   createFormController,
   createFormStore,
   useFormStoreContext,
-} from 'zustand-forms';
+} from 'zustorm';
 
 type Form = {
   name: string;

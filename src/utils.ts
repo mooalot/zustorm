@@ -2,13 +2,13 @@ import { produce, WritableDraft } from 'immer';
 import { get, isEqual, set } from 'lodash-es';
 import { isChanged } from 'proxy-compare';
 import { createContext, useCallback, useContext } from 'react';
-import { z, ZodFormattedError } from 'zod';
+import { object, ZodFormattedError, ZodType } from 'zod';
 import {
   createStore,
   StateCreator,
   StoreApi,
   StoreMutatorIdentifier,
-  useStore as useStore2,
+  useStore as useStoreZustand,
 } from 'zustand';
 import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
 
@@ -166,7 +166,7 @@ export function createFormController<
   const {
     formPath: initialFormPath = '',
     name: initialName = '',
-    useStore: useMethod = useStore2,
+    useStore: useMethod = useStoreZustand,
   } = options || {};
 
   return (props) => {
@@ -320,9 +320,7 @@ export const withForm = <
      * The function to get the schema for the form. This is useful for custom validation logic.
      * It can be a function that returns a Zod schema or a Zod schema itself.
      */
-    getSchema?: (
-      state: S
-    ) => z.ZodType<F extends FormState<infer F> ? F : never>;
+    getSchema?: (state: S) => ZodType<F extends FormState<infer F> ? F : never>;
     /**
      * A function that returns a boolean indicating if the form is valid.
      * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
@@ -349,7 +347,7 @@ export function createFormComputer<S extends object>() {
      */
     getSchema?: (
       state: S
-    ) => z.ZodType<F extends FormState<infer F> ? F : never> | undefined;
+    ) => ZodType<F extends FormState<infer F> ? F : never> | undefined;
     /**
      * The path to the form in the store. Note: this will override whatever formpath in the store provider if used.
      */
@@ -369,7 +367,7 @@ export function createFormComputer<S extends object>() {
         const form = safeGet(draft, formPath ?? '') as FormState<any>;
         if (!form) return;
 
-        const errors = (schema ?? z.object({})).safeParse(form.values);
+        const errors = (schema ?? object({})).safeParse(form.values);
         const errorsFormatted = errors.error?.format();
 
         safeSet(draft, formPath, {
@@ -401,7 +399,7 @@ export const createFormStore = <T extends object>(
      * The function to get the schema for the form. This is useful for custom validation logic.
      * It can be a function that returns a Zod schema or a Zod schema itself.
      */
-    getSchema?: (state: FormState<T>) => z.ZodType<T>;
+    getSchema?: (state: FormState<T>) => ZodType<T>;
     /**
      * A function that returns a boolean indicating if the form is valid.
      * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.

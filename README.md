@@ -11,7 +11,7 @@ Zustand middleware for managing forms.
 To use Zustand Forms, you need to install the package along with Zod for schema validation. (I may add support for other validation libraries in the future.)
 
 ```bash
-npm install zustand-forms zod
+npm install zustorm zod
 ```
 
 ## Usage Example
@@ -24,7 +24,7 @@ import {
   FormState,
   createFormController,
   withForm,
-} from 'zustand-forms';
+} from 'zustorm';
 
 type Form = {
   name: string;
@@ -74,8 +74,8 @@ function Form() {
 
 ## More Examples
 
-- [Global Example](https://github.com/mooalot/zustand-forms/tree/main/examples/global)
-- [Context Example](https://github.com/mooalot/zustand-forms/tree/main/examples/context)
+- [Global Example](https://github.com/mooalot/zustorm/tree/main/examples/global)
+- [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context)
 
 ## License
 

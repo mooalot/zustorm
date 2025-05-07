@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      'zustand-forms': path.resolve(__dirname, '../../src'),
+      zustorm: path.resolve(__dirname, '../../src'),
     },
   },
   server: {
