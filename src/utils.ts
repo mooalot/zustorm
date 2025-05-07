@@ -1,7 +1,7 @@
 import { produce, WritableDraft } from 'immer';
 import { get, isEqual, set } from 'lodash-es';
 import { isChanged } from 'proxy-compare';
-import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 import { z, ZodFormattedError } from 'zod';
 import {
   createStore,
@@ -10,7 +10,7 @@ import {
   StoreMutatorIdentifier,
   useStore as useStore2,
 } from 'zustand';
-import { DeepKeys, DeepValue, FormState } from './types';
+import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
 
 type Computed = <T extends object, K extends keyof T>(
   computed: Compute<T, Pick<T, K>>
@@ -170,53 +170,52 @@ export function createFormController<
   } = options || {};
 
   return (props) => {
-    const useStore = useCallback(
-      <T,>(callback: (selector: S) => T) => {
-        if (typeof store === 'function' && !options?.useStore) {
-          return store(callback);
-        } else {
-          return useMethod(store, callback);
-        }
-      },
-      [store, useMethod]
-    );
+    const useStore = useCallback(<T>(callback: (selector: S) => T) => {
+      if (typeof store === 'function' && !options?.useStore) {
+        return store(callback);
+      } else {
+        return useMethod(store, callback);
+      }
+    }, []);
     const { name: contextName = '', formPath: contextFormPath = '' } =
       useContext(PathContext) as PathContext<S, K>;
     const formPath = initialFormPath || contextFormPath;
     const { name = '', render, contextSelector } = props;
     type Value = Parameters<typeof render>[0]['value'];
 
-    function getResolvePath(state: any, ...segments: any[]) {
+    const getResolvePath = useCallback((state: any, ...segments: any[]) => {
       return [...segments]
         .filter(Boolean)
         .reduce((obj, segment) => safeGet(obj, segment), state);
-    }
+    }, []);
 
-    function setResolvePath(
-      state: any,
-      value: any,
-      ...segments: any[]
-    ): FormState<U> {
-      const filteredSegments = segments.filter(Boolean);
-      const lastSegment = filteredSegments.pop();
-      const target = filteredSegments.reduce((obj, segment) => {
-        const current = safeGet(obj, segment);
-        if (current === undefined) {
-          return safeSet(obj, segment, {});
+    const setResolvePath = useCallback(
+      (state: any, value: any, ...segments: any[]) => {
+        const filteredSegments = segments.filter(Boolean);
+        const lastSegment = filteredSegments.pop();
+        const target = filteredSegments.reduce((obj, segment) => {
+          const current = safeGet(obj, segment);
+          if (current === undefined) {
+            return safeSet(obj, segment, {});
+          }
+          return current;
+        }, state);
+        if (lastSegment) {
+          safeSet(target, lastSegment, value);
         }
-        return current;
-      }, state);
-      if (lastSegment) {
-        safeSet(target, lastSegment, value);
-      }
-      return state;
-    }
+        return state;
+      },
+      []
+    );
 
-    function getForm(state: S): FormState<U> {
-      return formPath
-        ? (safeGet(state, formPath) as FormState<U>)
-        : (state as unknown as FormState<U>);
-    }
+    const getForm = useCallback(
+      (state: S): FormState<U> => {
+        return formPath
+          ? (safeGet(state, formPath) as FormState<U>)
+          : (state as unknown as FormState<U>);
+      },
+      [formPath]
+    );
 
     const value = useStore((state) => {
       return getResolvePath(
@@ -261,7 +260,7 @@ export function createFormController<
 
             const newValue =
               typeof value === 'function'
-                ? (value as Function)(
+                ? (value as AnyFunction)(
                     getResolvePath(
                       state,
                       'values',
@@ -284,7 +283,7 @@ export function createFormController<
             if (form) {
               const newValues =
                 typeof form === 'function'
-                  ? (form as Function)(formState.values)
+                  ? (form as AnyFunction)(formState.values)
                   : form;
               formState.values = newValues;
             }
@@ -293,7 +292,7 @@ export function createFormController<
             formState.isTouched = true;
           });
         },
-        [store]
+        [contextName, name, getForm, setResolvePath, getResolvePath]
       ),
       error,
       context: context as any,
@@ -304,6 +303,7 @@ export function createFormController<
 export const withForm = <
   S extends object,
   K extends DeepKeys<S> | undefined,
+  //  eslint-disable-next-line @typescript-eslint/no-unused-vars
   F extends K extends DeepKeys<S> ? DeepValue<S, K> : S = K extends DeepKeys<S>
     ? DeepValue<S, K>
     : S,
@@ -332,13 +332,13 @@ export const withForm = <
     ) => boolean;
   }
 ): StateCreator<S, Mps, [...Mcs]> => {
-  const computer = createFormComputer<S>()(options);
-  return computer(creator);
+  return createFormComputer<S>()(options)(creator);
 };
 
 export function createFormComputer<S extends object>() {
   return function <
     K extends DeepKeys<S> | undefined,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     F extends K extends DeepKeys<S>
       ? DeepValue<S, K>
       : S = K extends DeepKeys<S> ? DeepValue<S, K> : S
@@ -416,57 +416,19 @@ export const createFormStore = <T extends object>(
   );
 };
 
-const FormStoreContext = createContext<StoreApi<any> | undefined>(undefined);
+export const FormStoreContext = createContext<StoreApi<any> | undefined>(
+  undefined
+);
 
-type PathContext<S, K> = {
+export type PathContext<S, K> = {
   formPath?: S;
   name?: K;
 };
 
-const PathContext = createContext<PathContext<any, any>>({});
+export const PathContext = createContext<PathContext<any, any>>({});
 
 // there should either be more options on a form provider or a new componnt that allows you to change the context of the children,
 //similar to how creating a form controller works, such as providing an initial name
-export const FormStoreProvider = <
-  T,
-  K extends DeepKeys<T> | undefined = undefined,
-  V = K extends DeepKeys<T> ? DeepValue<T, K> : T,
-  U = V extends FormState<infer X> ? X : never,
-  EN extends DeepKeys<U> | undefined = undefined
->({
-  children,
-  store,
-  options,
-}: {
-  children: React.ReactNode;
-  store: StoreApi<T>;
-  options?: {
-    /**
-     * Provide the path to the form in the store
-     */
-    formPath?: K;
-    /**
-     * Provide the name (path) to the variable in the form
-     */
-    name?: EN;
-  };
-}) => {
-  const { name: initialName, formPath } = options || {};
-  const pathContext = useMemo(
-    () => ({
-      formPath: formPath ?? '',
-      name: initialName ?? '',
-    }),
-    [formPath, initialName]
-  );
-  return (
-    <PathContext.Provider value={pathContext}>
-      <FormStoreContext.Provider value={store}>
-        {children}
-      </FormStoreContext.Provider>
-    </PathContext.Provider>
-  );
-};
 
 export function useFormStoreContext<S>() {
   const store = useContext(FormStoreContext) as StoreApi<FormState<S>>;

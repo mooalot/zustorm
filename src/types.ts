@@ -1,7 +1,9 @@
-import { ZodFormattedError, ZodType } from 'zod';
+import { ZodFormattedError } from 'zod';
+
+export type AnyFunction = (...args: any[]) => any;
 
 // Dot-notation string paths
-export type DeepKeyStrings<T> = T extends Function
+export type DeepKeyStrings<T> = T extends AnyFunction
   ? never
   : T extends Array<infer U>
   ? `${number}` | `${number}.${DeepKeyStrings<U>}`
@@ -14,7 +16,7 @@ export type DeepKeyStrings<T> = T extends Function
   : never;
 
 // Array-based key paths
-export type DeepKeyTuples<T> = T extends Function
+export type DeepKeyTuples<T> = T extends AnyFunction
   ? never
   : T extends Array<infer U>
   ? [number] | [number, ...DeepKeyTuples<U>]

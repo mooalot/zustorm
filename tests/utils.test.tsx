@@ -7,10 +7,10 @@ import {
   createFormComputer,
   createFormController,
   createFormStore,
-  FormStoreProvider,
   getDefaultForm,
   useFormStoreContext,
 } from '../src/utils';
+import { FormStoreProvider } from '../src/components';
 import { FormState } from '../src/types';
 
 // Mock components for testing
