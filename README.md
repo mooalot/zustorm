@@ -1,14 +1,15 @@
-# Zustand Forms
+# Zustorm
 
-Zustand middleware for managing forms.
+A way to use Zustand for form management.
 
 ## Features
 
 - **Simple API**: Takes the complexity out of form management, just like Zustand does for state management.
+- **It just works**: Yeah, it just works.
 
 ## Installation
 
-To use Zustand Forms, you need to install the package along with Zod for schema validation. (I may add support for other validation libraries in the future.)
+To use Zustorm, you need to install the package along with Zod for schema validation. (I may add support for other validation libraries in the future.)
 
 ```bash
 npm install zustorm zod
