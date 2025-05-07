@@ -2,6 +2,10 @@
 
 Zustand middleware for managing forms.
 
+## Features
+
+- **Simple API**: Takes the complexity out of form management, just like Zustand does for state management.
+
 ## Installation
 
 To use Zustand Forms, you need to install the package along with Zod for schema validation. (I may add support for other validation libraries in the future.)
@@ -67,3 +71,16 @@ function Form() {
   );
 }
 ```
+
+## More Examples
+
+- [Global Example](https://github.com/mooalot/zustand-forms/tree/main/examples/global)
+- [Context Example](https://github.com/mooalot/zustand-forms/tree/main/examples/context)
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request if you have suggestions or improvements.
