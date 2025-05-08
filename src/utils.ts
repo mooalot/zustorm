@@ -1,6 +1,11 @@
 import { produce, WritableDraft } from 'immer';
 import { get, isEqual, set } from 'lodash-es';
-import { isChanged } from 'proxy-compare';
+import {
+  createProxy,
+  getUntracked,
+  isChanged,
+  markToTrack,
+} from 'proxy-compare';
 import { createContext, useCallback, useContext } from 'react';
 import { object, ZodFormattedError, ZodType } from 'zod';
 import {
@@ -12,17 +17,6 @@ import {
 } from 'zustand';
 import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
 
-type Computed = <T extends object, K extends keyof T>(
-  computed: Compute<T, Pick<T, K>>
-) => <
-  Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = []
->(
-  creator: StateCreator<T, [...Mps], Mcs>
-) => StateCreator<T, Mps, [...Mcs]>;
-
-type Compute<T, A> = (state: T) => A;
-
 function produceStore<T>(
   useStore: { setState: StoreApi<T>['setState'] },
   producer: (draft: WritableDraft<T>) => void
@@ -30,43 +24,81 @@ function produceStore<T>(
   useStore.setState((state) => produce(state, producer));
 }
 
+type Computed = <T extends object>(
+  /**
+   * The function that computes the derived state.
+   */
+  compute: Compute<T>
+) => <
+  Mps extends [StoreMutatorIdentifier, unknown][] = [],
+  Mcs extends [StoreMutatorIdentifier, unknown][] = []
+>(
+  creator: StateCreator<T, [...Mps], Mcs>
+) => StateCreator<T, Mps, [...Mcs]>;
+
+type Compute<T> = (state: T) => Partial<T>;
+
 const createComputer = createComputerImplementation as unknown as Computed;
-function createComputerImplementation<T extends object, K extends keyof T>(
-  compute: Compute<T, Pick<T, K>>
+
+function createComputerImplementation<T extends object>(
+  compute: (state: T) => Partial<T>
 ): (creator: StateCreator<T>) => StateCreator<T> {
   return (creator) => {
     return (set, get, api) => {
-      const affected = new WeakMap();
+      let affected = new WeakMap();
+      const proxyCache = new WeakMap();
+      const targetCache = new WeakMap();
+      const compareCache = new WeakMap();
 
-      const isTrackedEqual = (next: T, prev: T) =>
-        !isChanged(
-          prev,
-          next,
+      let proxyState: T;
+
+      function runCompute(state: Partial<T>): Partial<T> {
+        proxyState = { ...get(), ...state };
+        affected = new WeakMap();
+        for (const key in proxyState) {
+          const value = proxyState[key];
+          if (typeof value === 'object' && value !== null)
+            markToTrack(value, false);
+        }
+        const proxy = createProxy(
+          proxyState,
           affected,
-          new WeakMap(),
-          isEqual as (a: unknown, b: unknown) => boolean
+          proxyCache,
+          targetCache
         );
+        const computed = compute(proxy);
+        return getUntracked(computed) ?? computed;
+      }
 
-      const computeAndMerge = (state: T) =>
-        Object.assign({}, state, compute(state));
+      const setWithComputed: typeof set = (partial, replace) => {
+        const nextPartial =
+          typeof partial === 'function' ? partial(get()) : partial;
 
-      type SetState = StoreApi<T>['setState'];
-      const setWithComputed = (set: SetState): SetState => {
-        return (state) => {
-          const prevState = get();
-          const nextPartialState =
-            typeof state === 'function' ? state(prevState) : state;
-          const newState = { ...prevState, ...nextPartialState };
+        const merged = { ...get(), ...nextPartial };
 
-          if (!isTrackedEqual(newState, prevState))
-            set(computeAndMerge(newState));
-          else set(newState);
-        };
+        const touched = isChanged(
+          proxyState,
+          merged,
+          affected,
+          compareCache,
+          Object.is
+        );
+        if (touched) {
+          const computed = runCompute(merged);
+          const withComputed = { ...nextPartial, ...computed };
+          set(withComputed, replace as false);
+        } else {
+          set(nextPartial, replace as false);
+        }
       };
 
-      api.setState = setWithComputed(api.setState);
+      Object.assign(api, {
+        setState: setWithComputed,
+      });
 
-      return computeAndMerge(creator(setWithComputed(set), get, api));
+      const initialState = creator(setWithComputed, get, api);
+      const initialComputed = runCompute(initialState);
+      return { ...initialState, ...initialComputed };
     };
   };
 }
@@ -357,7 +389,7 @@ export function createFormComputer<S extends object>() {
     isValidCallback?: (form: F) => boolean;
   }) {
     const { formPath, getSchema, isValidCallback } = options || {};
-    return createComputer<S, keyof S>((state) => {
+    return createComputer<S>((state) => {
       const schema = getSchema?.(state);
       return produce(state, (draft) => {
         const form = safeGet(draft, formPath ?? '') as FormState<any>;
