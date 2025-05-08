@@ -325,9 +325,7 @@ export const withForm = <
      * A function that returns a boolean indicating if the form is valid.
      * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
      */
-    isValidCallback?: (
-      form: F extends FormState<infer F> ? F : never
-    ) => boolean;
+    isValidCallback?: (form: F) => boolean;
   }
 ): StateCreator<S, Mps, [...Mcs]> => {
   return createFormComputer<S>()(options)(creator);
@@ -356,9 +354,7 @@ export function createFormComputer<S extends object>() {
      * A function that returns a boolean indicating if the form is valid.
      * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
      */
-    isValidCallback?: (
-      form: F extends FormState<infer F> ? F : never
-    ) => boolean;
+    isValidCallback?: (form: F) => boolean;
   }) {
     const { formPath, getSchema, isValidCallback } = options || {};
     return createComputer<S, keyof S>((state) => {
@@ -373,7 +369,7 @@ export function createFormComputer<S extends object>() {
         safeSet(draft, formPath, {
           ...form,
           isValid: isValidCallback
-            ? isValidCallback(form as F extends FormState<infer F> ? F : never)
+            ? isValidCallback(form as F)
             : errors.success,
           errors: errorsFormatted,
         });
