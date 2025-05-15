@@ -11,8 +11,8 @@ export default defineConfig({
   build: {
     outDir: 'dist', // Output directory for build files
     lib: {
+      name: 'zustorm', // Library name
       entry: 'src/index.ts', // Entry point for your library
-      name: 'ZustandForms', // Global variable name if your library is used in a non-ESM environment
       fileName: (format) => `index.${format}.js`, // Output file naming pattern
     },
     rollupOptions: {

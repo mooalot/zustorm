@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createStore } from 'zustand';
@@ -293,5 +293,50 @@ describe('form.utils', () => {
 
     const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
     expect(input.value).toBe('Plain Store Test');
+  });
+
+  it('should be able to create a store in react context and use it', () => {
+    const defaultValues = { name: 'Test' };
+
+    const MockForm = () => {
+      const store = useFormStoreContext<{ name: string }>();
+      const FormController = useMemo(
+        () => createFormController(store),
+        [store]
+      );
+
+      return (
+        <FormController
+          name="name"
+          render={({ value, onChange }) => (
+            <input
+              data-testid="form-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          )}
+        />
+      );
+    };
+
+    const MockParent = () => {
+      const store = useMemo(
+        () =>
+          createFormStore(defaultValues, {
+            getSchema: () => z.object({ name: z.string() }),
+          }),
+        []
+      );
+      return (
+        <FormStoreProvider store={store}>
+          <MockForm />
+        </FormStoreProvider>
+      );
+    };
+
+    render(<MockParent />);
+
+    const input = screen.getByTestId('form-input') as HTMLInputElement;
+    expect(input.value).toBe('Test');
   });
 });

@@ -3,7 +3,7 @@ import { DeepKeys, DeepValue, FormState } from './types';
 import { useMemo } from 'react';
 import { FormStoreContext, PathContext } from './utils';
 
-export const FormStoreProvider = <
+export function FormStoreProvider<
   T,
   K extends DeepKeys<T> | undefined = undefined,
   V = K extends DeepKeys<T> ? DeepValue<T, K> : T,
@@ -14,7 +14,7 @@ export const FormStoreProvider = <
   store,
   options,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   store: StoreApi<T>;
   options?: {
     /**
@@ -26,7 +26,7 @@ export const FormStoreProvider = <
      */
     name?: EN;
   };
-}) => {
+}) {
   const { name: initialName, formPath } = options || {};
   const pathContext = useMemo(
     () => ({
@@ -42,4 +42,4 @@ export const FormStoreProvider = <
       </FormStoreContext.Provider>
     </PathContext.Provider>
   );
-};
+}
