@@ -1,45 +1,35 @@
-import { StoreApi } from 'zustand';
-import { DeepKeys, DeepValue, FormState } from './types';
 import { useMemo } from 'react';
-import { FormStoreContext, PathContext } from './utils';
+import { StoreApi } from 'zustand';
+import { DeepKeys, FormState } from './types';
+import { FormStoreContext, getScopedFormApi } from './utils';
 
 export function FormStoreProvider<
-  T,
-  K extends DeepKeys<T> | undefined = undefined,
-  V = K extends DeepKeys<T> ? DeepValue<T, K> : T,
-  U = V extends FormState<infer X> ? X : never,
-  EN extends DeepKeys<U> | undefined = undefined
+  T extends object,
+  K extends DeepKeys<T> | undefined = undefined
 >({
   children,
   store,
   options,
 }: {
   children?: React.ReactNode;
-  store: StoreApi<T>;
+  store: StoreApi<FormState<T>>;
   options?: {
-    /**
-     * Provide the path to the form in the store
-     */
-    formPath?: K;
     /**
      * Provide the name (path) to the variable in the form
      */
-    name?: EN;
+    name?: K;
   };
 }) {
-  const { name: initialName, formPath } = options || {};
-  const pathContext = useMemo(
-    () => ({
-      formPath: formPath ?? '',
-      name: initialName ?? '',
-    }),
-    [formPath, initialName]
+  const { name } = options || {};
+  const scopedStore = useMemo(
+    () => (name ? getScopedFormApi(store, name as any) : store),
+    [store, name]
   );
+
+  console.log('FormStoreProvider', scopedStore.getState(), name);
   return (
-    <PathContext.Provider value={pathContext}>
-      <FormStoreContext.Provider value={store}>
-        {children}
-      </FormStoreContext.Provider>
-    </PathContext.Provider>
+    <FormStoreContext.Provider value={scopedStore}>
+      {children}
+    </FormStoreContext.Provider>
   );
 }

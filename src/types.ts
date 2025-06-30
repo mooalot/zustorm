@@ -75,30 +75,42 @@ export type FormState<T> = {
   /**
    * The errors of the form fields. Currently only supports Zod errors.
    */
-  errors?: ZodFormattedError<T>;
+  errors?: Nested<
+    T,
+    {
+      _errors?: string[];
+    }
+  >;
   /**
    * The touched state of the form fields.
    */
-  isTouched: boolean;
+  touched?: Nested<
+    T,
+    {
+      _touched?: boolean;
+    }
+  >;
   /**
-   * If the form is valid. This is a boolean value that indicates if the form is valid or not.
+   * If the form is dirty. This is a boolean value that indicates if the form is dirty or not.
    */
-  isValid: boolean;
+  dirty?: Nested<
+    T,
+    {
+      _dirty?: boolean;
+    }
+  >;
   /**
    * If the form is submitting. This is a boolean value that indicates if the form is currently submitting or not.
    * This value is here to be used when needed. You'll have to set it manually.
    */
   isSubmitting: boolean;
-  /**
-   * If the form is dirty. This is a boolean value that indicates if the form is dirty or not.
-   */
-  isDirty: boolean;
 };
 
-// type Touch<T> = {
-//   _touched: boolean;
-// } & Touches<T>;
-
-// export type Touches<T> = {
-//   [K in keyof T]?: Touch<T[K]>;
-// };
+type Nested<T, O> = O &
+  Partial<{
+    [K in keyof T]: T[K] extends object
+      ? Nested<T[K], O>
+      : T[K] extends Array<infer U>
+      ? Array<Nested<U, O>>
+      : O;
+  }>;
