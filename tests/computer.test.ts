@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createStore } from 'zustand';
 import { createComputer } from '../src/computer';
 
@@ -13,7 +13,7 @@ describe('createComputer', () => {
       const store = createStore<State>()(
         createComputer<State>((state) => ({
           doubled: state.count * 2,
-        }))((set) => ({
+        }))(() => ({
           count: 5,
           doubled: 0, // Will be computed
         }))
@@ -34,7 +34,7 @@ describe('createComputer', () => {
       const store = createStore<State>()(
         createComputer<State>((state) => ({
           result: state.count * state.multiplier,
-        }))((set) => ({
+        }))(() => ({
           count: 2,
           multiplier: 3,
           result: 0,
@@ -69,7 +69,7 @@ describe('createComputer', () => {
             doubled: state.count * 2,
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           count: 5,
           other: 'initial',
           doubled: 0,
@@ -108,7 +108,7 @@ describe('createComputer', () => {
             doubled: state.count * 2,
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           count: 5,
           other: 'initial',
           doubled: 0,
@@ -151,7 +151,7 @@ describe('createComputer', () => {
             displayName: `${state.user.profile.name} (${state.user.profile.age})`,
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           user: {
             profile: {
               name: 'John',
@@ -199,7 +199,7 @@ describe('createComputer', () => {
             count: state.items.length,
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           items: [
             { id: 1, name: 'Item 1' },
             { id: 2, name: 'Item 2' },
@@ -231,7 +231,7 @@ describe('createComputer', () => {
       const store = createStore<State>()(
         createComputer<State>((state) => ({
           result: state.data?.value ?? 0,
-        }))((set) => ({
+        }))(() => ({
           data: null,
           result: 0,
         }))
@@ -257,7 +257,7 @@ describe('createComputer', () => {
       const store = createStore<State>()(
         createComputer<State>((state) => ({
           doubled: state.count * 2,
-        }))((set) => ({
+        }))(() => ({
           count: 1,
           doubled: 0,
         }))
@@ -296,7 +296,7 @@ describe('createComputer', () => {
             displayInfo: `${state.firstName} ${state.lastName} (${state.age})`,
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           firstName: 'John',
           lastName: 'Doe',
           age: 25,
@@ -339,7 +339,7 @@ describe('createComputer', () => {
             sum: state.data.items.reduce((acc, item) => acc + item, 0),
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           data: { items: [1, 2, 3] },
           sum: 0,
           computeCallCount: 0,
@@ -376,7 +376,7 @@ describe('createComputer', () => {
             ),
             computeCallCount,
           };
-        })((set) => ({
+        })(() => ({
           counters: { a: 1, b: 2, c: 3 },
           total: 0,
           computeCallCount: 0,

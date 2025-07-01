@@ -1,21 +1,19 @@
+import { set } from 'lodash-es';
 import { useCallback, useMemo } from 'react';
 import { StoreApi, useStore as useStoreZustand } from 'zustand';
 import {
   AnyFunction,
   DeepKeys,
   DeepValue,
-  FormState,
   FormRenderProps,
+  FormState,
 } from './types';
 import {
   FormStoreContext,
   getScopedFormApi,
   getWithOptionalPath,
-  mergePaths,
   produceStore,
-  setWithOptionalPath,
 } from './utils';
-import { set } from 'lodash-es';
 
 /**
  * React context provider component that makes a form store available to child components.
@@ -127,7 +125,7 @@ export function FormController<
           set(state, ['dirty', '_dirty'], true);
         });
       },
-      [scopedStore]
+      [store]
     ),
     onChange: useCallback(
       (value) => {

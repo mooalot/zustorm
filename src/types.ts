@@ -1,5 +1,3 @@
-import { ZodFormattedError } from 'zod';
-
 export type AnyFunction = (...args: any[]) => any;
 
 // Dot-notation string paths

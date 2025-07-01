@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import React, { useMemo } from 'react';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
+import { FormController, FormStoreProvider } from '../src/components';
+import { FormState } from '../src/types';
 import {
   createFormStore,
   getDefaultForm,
@@ -14,8 +15,6 @@ import {
   useFormStore,
   withForm,
 } from '../src/utils';
-import { FormController, FormStoreProvider } from '../src/components';
-import { FormState } from '../src/types';
 
 describe('setWithOptionalPath', () => {
   it('should set a value at the specified path', () => {
@@ -822,7 +821,7 @@ describe('form dirty state', () => {
       <FormController
         store={formStore}
         name="name"
-        render={({ value, onChange }) => (
+        render={({ onChange }) => (
           <button
             data-testid="update-button"
             onClick={() => onChange((prev) => prev + ' Updated')}
