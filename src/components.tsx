@@ -17,6 +17,15 @@ import {
 } from './utils';
 import { set } from 'lodash-es';
 
+/**
+ * React context provider component that makes a form store available to child components.
+ * Allows child components to access the form store using useFormStore hook.
+ *
+ * @param children - React children components
+ * @param store - The form store to provide to child components
+ * @param options - Optional configuration object
+ * @param options.name - Path to a specific part of the form to scope the provider to
+ */
 export function FormStoreProvider<
   T extends object,
   K extends DeepKeys<T> | undefined = undefined
@@ -47,6 +56,19 @@ export function FormStoreProvider<
   );
 }
 
+/**
+ * A render prop component that provides form state and handlers for building form UIs.
+ * Automatically handles value changes, validation, touched/dirty states, and provides
+ * optimized change handlers for form interactions.
+ *
+ * @param store - The form store instance
+ * @param name - Optional path to a specific field within the form
+ * @param contextSelector - Function to select additional context from the store state
+ * @param render - Render function that receives form state and handlers
+ * @param options - Optional configuration object
+ * @param options.useStore - Custom store hook to use instead of the default zustand useStore
+ * @returns JSX element from the render prop
+ */
 export function FormController<
   S extends object,
   C,
@@ -77,7 +99,6 @@ export function FormController<
   const value = useStore(scopedStore, (state) => state.values);
   const error = useStore(scopedStore, (state) => state.errors);
   const touched = useStore(scopedStore, (state) => state.touched);
-  console.log('touch changed', touched);
   const dirty = useStore(scopedStore, (state) => state.dirty);
   const context = useStore(store, (state) => {
     if (!contextSelector) return undefined;
@@ -92,8 +113,6 @@ export function FormController<
       produceStore(scopedStore, (state) => {
         set(state, ['touched', '_touched'], true);
       });
-      console.log(JSON.parse(JSON.stringify(scopedStore.getState())));
-      console.log(JSON.parse(JSON.stringify(store.getState())));
     }, [scopedStore]),
     onFormChange: useCallback(
       (form) => {
@@ -123,8 +142,6 @@ export function FormController<
           set(state, ['touched', '_touched'], true);
           set(state, ['dirty', '_dirty'], true);
         });
-        console.log(JSON.parse(JSON.stringify(scopedStore.getState())));
-        console.log(JSON.parse(JSON.stringify(store.getState())));
       },
       [scopedStore]
     ),

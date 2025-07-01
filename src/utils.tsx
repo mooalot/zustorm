@@ -18,6 +18,16 @@ export function produceStore<T>(
   useStore.setState((state) => produce(state, producer));
 }
 
+/**
+ * A higher-order function that enhances a Zustand store creator with form management capabilities.
+ * Automatically adds form validation, error handling, and state computation to your store.
+ *
+ * @param creator - The Zustand store creator function
+ * @param options - Configuration options including formPath and schema validation
+ * @param options.formPath - The path to the form within the store (required when store state is not directly a FormState)
+ * @param options.getSchema - Function to get the Zod schema for form validation
+ * @returns An enhanced store creator with form management
+ */
 export const withForm = <
   S extends object,
   K extends DeepKeys<S> | undefined = undefined,
@@ -94,6 +104,13 @@ function createFormComputer<S extends object>() {
   };
 }
 
+/**
+ * Creates a default form state object with the provided initial values.
+ * Sets up the basic structure with isSubmitting: false and the provided values.
+ *
+ * @param values - The initial values for the form
+ * @returns A FormState object with default properties
+ */
 export function getDefaultForm<T extends object>(values: T): FormState<T> {
   return {
     isSubmitting: false,
@@ -101,6 +118,15 @@ export function getDefaultForm<T extends object>(values: T): FormState<T> {
   };
 }
 
+/**
+ * Creates a Zustand store with form state management capabilities.
+ * The store will automatically handle form validation, dirty/touched states, and submission states.
+ *
+ * @param initialValue - The initial values for the form
+ * @param options - Optional configuration including schema validation
+ * @param options.getSchema - Function to get the Zod schema for form validation
+ * @returns A Zustand store configured for form management
+ */
 export const createFormStore = <T extends object>(
   initialValue: T,
   options?: {
@@ -122,6 +148,13 @@ export const FormStoreContext = createContext<StoreApi<FormState<any>> | null>(
   null
 );
 
+/**
+ * React hook to access the form store from context.
+ * Must be used within a FormStoreProvider component.
+ *
+ * @throws Error if used outside of FormStoreProvider
+ * @returns The form store instance from context
+ */
 export function useFormStore<S>() {
   const store = useContext(FormStoreContext) as StoreApi<FormState<S>> | null;
   if (!store) {
@@ -259,6 +292,14 @@ export function getScopedFormApi<
   };
 }
 
+/**
+ * Gets a scoped API for accessing a specific form within a larger store state.
+ * Useful when you have multiple forms or nested form structures in your store.
+ *
+ * @param store - The Zustand store instance
+ * @param formPath - The path to the specific form within the store
+ * @returns A scoped store API for the specified form
+ */
 export function getFormApi<
   S extends object,
   K extends DeepKeys<S>,

@@ -67,6 +67,10 @@ type DeepValueFromStringPath<
     : never
   : never;
 
+/**
+ * The core form state type that represents the complete state of a form.
+ * Includes form values, validation errors, touched/dirty states, and submission status.
+ */
 export type FormState<T> = {
   /**
    * The current values of the form fields.
