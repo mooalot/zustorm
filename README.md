@@ -1,39 +1,37 @@
 # Zustorm
 
-[![npm version](https://badge.fury.io/js/zustorm.svg)](https://badge.fury.io/js/zustorm)
-[![Build Status](https://github.com/mooalot/zustorm/workflows/CI/badge.svg)](https://github.com/mooalot/zustorm/actions)
-[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/mooalot/zustorm)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![npm downloads](https://img.shields.io/npm/dm/zustorm.svg)](https://www.npmjs.com/package/zustorm)
-[![Bundle Size](https://img.shields.io/bundlephobia/minzip/zustorm)](https://bundlephobia.com/package/zustorm)
+<img src="./zustorm-art.jpg" alt="Zustorm Logo" style="max-width: 1000px; width: 100%; display: block; margin: 0 auto 20px auto;">
 
-<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; background-color: #000000; padding: 20px; border-radius: 10px;">
-<img src="./zustorm-art.jpg" alt="Zustorm Logo" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; height: 100px; object-fit: cover;">
-</div>
+[![npm version](https://img.shields.io/npm/v/zustorm?color=06172C&labelColor=000000&style=flat-square)](https://badge.fury.io/js/zustorm)
+[![CI](https://img.shields.io/github/actions/workflow/status/mooalot/zustorm/publish.yml?color=06172C&labelColor=000000&style=flat-square&label=CI)](https://github.com/mooalot/zustorm/actions)
+[![Test Coverage](https://img.shields.io/badge/coverage-100%25-06172C?labelColor=000000&style=flat-square)](https://github.com/mooalot/zustorm)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-06172C?labelColor=000000&style=flat-square)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-06172C?labelColor=000000&style=flat-square)](https://opensource.org/licenses/MIT)
+[![npm downloads](https://img.shields.io/npm/dm/zustorm?color=06172C&labelColor=000000&style=flat-square)](https://www.npmjs.com/package/zustorm)
+[![Bundle Size](https://img.shields.io/bundlephobia/minzip/zustorm?color=06172C&labelColor=000000&style=flat-square)](https://bundlephobia.com/package/zustorm)
 
 **Powerful form management with Zustand and Zod validation**
 
 Zustorm combines the simplicity of Zustand with the power of Zod validation to create a type-safe, intuitive form management solution for React applications.
 
-## ✨ Features
+## Features
 
-- **🎯 Simple & Intuitive** - Familiar Zustand patterns for form state
-- **🔒 Type Safe** - Full TypeScript support with automatic type inference
-- **✅ Built-in Validation** - Seamless Zod schema integration
-- **⚡ High Performance** - Granular updates and minimal re-renders
-- **🧩 Flexible Architecture** - Global stores or React Context patterns
-- **📦 Zero Dependencies** - Only peer deps: Zustand, Zod, and React
+- **Simple & Intuitive** - Familiar Zustand patterns for form state
+- **Type Safe** - Full TypeScript support with automatic type inference
+- **Built-in Validation** - Seamless Zod schema integration
+- **High Performance** - Granular updates and minimal re-renders
+- **Flexible Architecture** - Global stores or React Context patterns
+- **Zero Dependencies** - Only peer deps: Zustand, Zod, and React
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install zustorm zustand zod react
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
-### 🌐 Global State Pattern
+### Global State Pattern
 
 ```typescript
 import { z } from 'zod';
@@ -80,7 +78,7 @@ function UserForm() {
 }
 ```
 
-### 🔗 Context Pattern
+### Context Pattern
 
 ```typescript
 import { useMemo } from 'react';
@@ -126,7 +124,7 @@ function UserForm() {
 }
 ```
 
-### 🔄 Arrays
+### Arrays
 
 ```typescript
 <FormController
@@ -150,7 +148,7 @@ function UserForm() {
 />
 ```
 
-## 📚 API
+## API
 
 | Function                           | Description                                   |
 | ---------------------------------- | --------------------------------------------- |
@@ -160,9 +158,9 @@ function UserForm() {
 | `FormStoreProvider`                | Provides form store context                   |
 | `useFormStore()`                   | Access form store from context                |
 | `getDefaultForm(values)`           | Returns default form state                    |
-| `getFormApi(store)`                | Access deep form API methods                  |
+| `getFormApi(store, formPath)`      | Access deep form API methods                  |
 
-## 🎯 Key Features
+## Key Features
 
 - **Type Safe** - Full TypeScript inference
 - **Zod Validation** - Automatic real-time validation
@@ -170,7 +168,7 @@ function UserForm() {
 - **Arrays** - Dynamic arrays: `friends.${index}.name`
 - **Two Patterns** - Global state or React Context
 
-## 📖 Examples
+## Examples
 
 Complete examples with styling and advanced features:
 
@@ -178,10 +176,10 @@ Complete examples with styling and advanced features:
 - [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context)
 - [Array Handling Example](https://github.com/mooalot/zustorm/tree/main/examples/arrays)
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+## License
 
 MIT License - see the [LICENSE](LICENSE) file for details.
