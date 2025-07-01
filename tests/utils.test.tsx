@@ -4,17 +4,26 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import {
-  createFormComputer,
   createFormStore,
-  FormController,
   getDefaultForm,
+  getFormApi,
   getScopedApi,
   getScopedFormApi,
   getScopedFormState,
+  setWithOptionalPath,
   useFormStore,
+  withForm,
 } from '../src/utils';
-import { FormStoreProvider } from '../src/components';
+import { FormController, FormStoreProvider } from '../src/components';
 import { FormState } from '../src/types';
+
+describe('setWithOptionalPath', () => {
+  it('should set a value at the specified path', () => {
+    const state = { a: { b: { c: 1 } } };
+    setWithOptionalPath(state, 'a.b.c', 2);
+    expect(state.a.b.c).toBe(2);
+  });
+});
 
 describe('getScopedApi', () => {
   it('should return a scoped API with the correct type', () => {
@@ -220,19 +229,111 @@ describe('form.utils', () => {
 
   it('should create a plain zustand store and use form controller to access it', () => {
     const defaultValues = { name: 'Plain Store Test' };
-    const computer = createFormComputer<{
-      form: FormState<{ name: string }>;
-    }>()({
-      formPath: 'form',
-      getSchema: () => z.object({ name: z.string() }),
-    });
     const plainStore = createStore(
-      computer(() => ({
-        form: getDefaultForm(defaultValues),
-      }))
+      withForm(
+        () => ({
+          form: getDefaultForm(defaultValues),
+        }),
+        {
+          formPath: 'form',
+          getSchema: () => z.object({ name: z.string() }),
+        }
+      )
     );
 
     const MockForm = () => {
+      return (
+        <FormController
+          store={getFormApi(plainStore, 'form')}
+          name="name"
+          render={({ value, onChange }) => (
+            <input
+              data-testid="plain-store-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          )}
+        />
+      );
+    };
+
+    render(<MockForm />);
+
+    const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
+    expect(input.value).toBe('Plain Store Test');
+
+    // Simulate user input
+    fireEvent.change(input, { target: { value: 'Updated Plain Store' } });
+
+    const state = plainStore.getState();
+    expect(state.form.values.name).toBe('Updated Plain Store');
+  });
+
+  it('should be able to pass a custom form path to the Form provider', () => {
+    const defaultValues = { name: 'Plain Store Test' };
+    const plainStore = createStore(
+      withForm(
+        () => ({
+          form: getDefaultForm(defaultValues),
+        }),
+        {
+          formPath: 'form',
+          getSchema: () => z.object({ name: z.string() }),
+        }
+      )
+    );
+
+    // create a mock component and its parent component
+    const MockChild = () => {
+      const store = useFormStore<{ name: string }>();
+
+      return (
+        <FormController
+          store={store}
+          name="name"
+          render={({ value, onChange }) => (
+            <input
+              data-testid="plain-store-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          )}
+        />
+      );
+    };
+
+    const MockParent = () => (
+      <FormStoreProvider store={getFormApi(plainStore, 'form')}>
+        <MockChild />
+      </FormStoreProvider>
+    );
+
+    render(<MockParent />);
+
+    const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
+    expect(input.value).toBe('Plain Store Test');
+    // Simulate user input
+    fireEvent.change(input, { target: { value: 'Updated Plain Store' } });
+    const state = plainStore.getState();
+    expect(state.form.values.name).toBe('Updated Plain Store');
+  });
+
+  it('should be able to pass a custom name to the form provider', () => {
+    const defaultValues = { user: { name: 'Plain Store Test' } };
+    const plainStore = createStore(
+      withForm(
+        () => ({
+          form: getDefaultForm(defaultValues),
+        }),
+        {
+          formPath: 'form',
+          getSchema: () => z.object({ user: z.object({ name: z.string() }) }),
+        }
+      )
+    );
+
+    // create a mock component and its parent component
+    const MockChild = () => {
       const store = useFormStore<{ name: string }>();
       return (
         <FormController
@@ -249,247 +350,18 @@ describe('form.utils', () => {
       );
     };
 
-    render(
-      <FormStoreProvider store={plainStore} options={{ name: 'form' }}>
-        <MockForm />
+    const MockParent = () => (
+      <FormStoreProvider
+        store={getFormApi(plainStore, 'form')}
+        options={{ name: 'user' }}
+      >
+        <MockChild />
       </FormStoreProvider>
     );
 
+    render(<MockParent />);
+
     const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
     expect(input.value).toBe('Plain Store Test');
-
-    // Simulate user input
-    fireEvent.change(input, { target: { value: 'Updated Plain Store' } });
-
-    const state = plainStore.getState();
-    expect(state.form.values.name).toBe('Updated Plain Store');
   });
-
-  //   it('should be able to create a form controller with custom path', () => {
-  //     const schema = z.object({ user: z.object({ name: z.string() }) });
-  //     const defaultValues = { user: { name: 'Test' } };
-  //     const formStore = createFormStore(defaultValues, {
-  //       getSchema: () => schema,
-  //     });
-
-  //     const FormController = createFormController(formStore, {
-  //       name: 'user',
-  //     });
-
-  //     const MockForm = () => (
-  //       <FormController
-  //         name="name"
-  //         render={({ value, onChange }) => (
-  //           <input
-  //             data-testid="custom-path-input"
-  //             value={value}
-  //             onChange={(e) => onChange(e.target.value)}
-  //           />
-  //         )}
-  //       />
-  //     );
-
-  //     render(
-  //       <FormStoreProvider store={formStore}>
-  //         <MockForm />
-  //       </FormStoreProvider>
-  //     );
-
-  //     const input = screen.getByTestId('custom-path-input') as HTMLInputElement;
-  //     expect(input.value).toBe('Test');
-
-  //     // Simulate user input
-  //     fireEvent.change(input, { target: { value: 'Updated Custom Path' } });
-
-  //     const state = formStore.getState();
-  //     expect(state.values.user.name).toBe('Updated Custom Path');
-  //   });
-
-  //   it('should be able to pass a custom form path to the Form provider', () => {
-  //     const defaultValues = { name: 'Plain Store Test' };
-  //     const computer = createFormComputer<{
-  //       form: FormState<{ name: string }>;
-  //     }>()({
-  //       formPath: 'form',
-  //       getSchema: () => z.object({ name: z.string() }),
-  //     });
-  //     const plainStore = createStore(
-  //       computer(() => ({
-  //         form: getDefaultForm(defaultValues),
-  //       }))
-  //     );
-
-  //     // create a mock component and its parent component
-  //     const MockChild = () => {
-  //       const store = useFormStore<{ name: string }>();
-  //       const FormController = createFormController(store);
-
-  //       return (
-  //         <FormController
-  //           name="name"
-  //           render={({ value, onChange }) => (
-  //             <input
-  //               data-testid="plain-store-input"
-  //               value={value}
-  //               onChange={(e) => onChange(e.target.value)}
-  //             />
-  //           )}
-  //         />
-  //       );
-  //     };
-
-  //     const MockParent = () => (
-  //       <FormStoreProvider store={plainStore} options={{ formPath: 'form' }}>
-  //         <MockChild />
-  //       </FormStoreProvider>
-  //     );
-
-  //     render(<MockParent />);
-
-  //     const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
-  //     expect(input.value).toBe('Plain Store Test');
-  //     // Simulate user input
-  //     fireEvent.change(input, { target: { value: 'Updated Plain Store' } });
-  //     const state = plainStore.getState();
-  //     expect(state.form.values.name).toBe('Updated Plain Store');
-  //   });
-
-  //   it('should be able to pass a custom name to the form provider', () => {
-  //     const defaultValues = { user: { name: 'Plain Store Test' } };
-  //     const computer = createFormComputer<{
-  //       form: FormState<{ user: { name: string } }>;
-  //     }>()({
-  //       formPath: 'form',
-  //       getSchema: () => z.object({ user: z.object({ name: z.string() }) }),
-  //     });
-  //     const plainStore = createStore(
-  //       computer(() => ({
-  //         form: getDefaultForm(defaultValues),
-  //       }))
-  //     );
-
-  //     // create a mock component and its parent component
-  //     const MockChild = () => {
-  //       const store = useFormStore<{ name: string }>();
-  //       const FormController = createFormController(store);
-
-  //       return (
-  //         <FormController
-  //           name="name"
-  //           render={({ value, onChange }) => (
-  //             <input
-  //               data-testid="plain-store-input"
-  //               value={value}
-  //               onChange={(e) => onChange(e.target.value)}
-  //             />
-  //           )}
-  //         />
-  //       );
-  //     };
-
-  //     const MockParent = () => (
-  //       <FormStoreProvider
-  //         store={plainStore}
-  //         options={{ formPath: 'form', name: 'user' }}
-  //       >
-  //         <MockChild />
-  //       </FormStoreProvider>
-  //     );
-
-  //     render(<MockParent />);
-
-  //     const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
-  //     expect(input.value).toBe('Plain Store Test');
-  //   });
-
-  //   it('should be able to create a store in react context and use it', () => {
-  //     const defaultValues = { name: 'Test' };
-
-  //     const MockForm = () => {
-  //       const store = useFormStore<{ name: string }>();
-  //       const FormController = useMemo(
-  //         () => createFormController(store),
-  //         [store]
-  //       );
-
-  //       return (
-  //         <FormController
-  //           name="name"
-  //           render={({ value, onChange }) => (
-  //             <input
-  //               data-testid="form-input"
-  //               value={value}
-  //               onChange={(e) => onChange(e.target.value)}
-  //             />
-  //           )}
-  //         />
-  //       );
-  //     };
-
-  //     const MockParent = () => {
-  //       const store = useMemo(
-  //         () =>
-  //           createFormStore(defaultValues, {
-  //             getSchema: () => z.object({ name: z.string() }),
-  //           }),
-  //         []
-  //       );
-  //       return (
-  //         <FormStoreProvider store={store}>
-  //           <MockForm />
-  //         </FormStoreProvider>
-  //       );
-  //     };
-
-  //     render(<MockParent />);
-
-  //     const input = screen.getByTestId('form-input') as HTMLInputElement;
-  //     expect(input.value).toBe('Test');
-  //   });
-
-  //   it('should be able to create a store in react context and use it with custom path', () => {
-  //     const defaultValues = { user: { name: 'Test' } };
-
-  //     const MockForm = () => {
-  //       const store = useFormStore<{ user: { name: string } }>();
-
-  //       const FormController = useMemo(
-  //         () => createFormController(store, { name: 'user' }),
-  //         [store]
-  //       );
-
-  //       return (
-  //         <FormController
-  //           name={['name']}
-  //           render={({ value, onChange }) => (
-  //             <input
-  //               data-testid="form-input"
-  //               value={value}
-  //               onChange={(e) => onChange(e.target.value)}
-  //             />
-  //           )}
-  //         />
-  //       );
-  //     };
-
-  //     const MockParent = () => {
-  //       const store = useMemo(
-  //         () =>
-  //           createFormStore(defaultValues, {
-  //             getSchema: () => z.object({ user: z.object({ name: z.string() }) }),
-  //           }),
-  //         []
-  //       );
-  //       return (
-  //         <FormStoreProvider store={store}>
-  //           <MockForm />
-  //         </FormStoreProvider>
-  //       );
-  //     };
-
-  //     render(<MockParent />);
-
-  //     const input = screen.getByTestId('form-input') as HTMLInputElement;
-  //     expect(input.value).toBe('Test');
-  //   });
 });

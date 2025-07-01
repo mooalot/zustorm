@@ -6,18 +6,17 @@ import {
   isChanged,
   markToTrack,
 } from 'proxy-compare';
-import { createContext, useCallback, useContext, useMemo } from 'react';
-import { object, ZodFormattedError, ZodType } from 'zod';
+import { createContext, useContext } from 'react';
+import { object, ZodType } from 'zod';
 import {
   createStore,
   StateCreator,
   StoreApi,
   StoreMutatorIdentifier,
-  useStore as useStoreZustand,
 } from 'zustand';
 import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
 
-function produceStore<T>(
+export function produceStore<T>(
   useStore: { setState: StoreApi<T>['setState'] },
   producer: (draft: WritableDraft<T>) => void
 ) {
@@ -103,116 +102,75 @@ function createComputerImplementation<T extends object>(
   };
 }
 
-function safeGet(obj: any, path: any, defaultValue?: any) {
-  if (!path || (Array.isArray(path) && path.length === 0)) {
-    return obj;
-  }
-  return get(obj, path, defaultValue);
-}
-
-function safeSet(obj: any, path: any, value: any) {
-  if (!path || (Array.isArray(path) && path.length === 0)) {
-    return Object.assign(obj, value);
-  }
-  return set(obj, path, value);
-}
-
-export type FormRenderProps<T, A, F> = {
-  /**
-   * The value of the field. This is the value that is stored in the form state.
-   */
-  value: T;
-  /**
-   * The function to call when the value changes.
-   * It can be a value or a function that returns a value.
-   */
-  onChange: (value: T | ((value: T) => T), form?: F | ((form: F) => F)) => void;
-  /**
-   * The function to call when the input is blurred.
-   * It can be used to trigger validation or other side effects.
-   */
-  onBlur?: () => void;
-  /**
-   * The error object for the field.
-   */
-  error?: ZodFormattedError<T>;
-  /**
-   * The context object for the field. Evaluated from the contextSelector.
-   */
-  context: A;
-};
-
 export const withForm = <
   S extends object,
-  K extends DeepKeys<S> | undefined,
-  //  eslint-disable-next-line @typescript-eslint/no-unused-vars
-  F extends K extends DeepKeys<S> ? DeepValue<S, K> : S = K extends DeepKeys<S>
-    ? DeepValue<S, K>
-    : S,
+  K extends DeepKeys<S> | undefined = undefined,
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = []
 >(
   creator: StateCreator<S, [...Mps], Mcs>,
-  options?: {
-    /**
-     * The path to the form in the store. Note: this will override whatever formpath in the store provider if used.
-     */
-    formPath?: K;
-    /**
-     * The function to get the schema for the form. This is useful for custom validation logic.
-     * It can be a function that returns a Zod schema or a Zod schema itself.
-     */
-    getSchema?: (state: S) => ZodType<F extends FormState<infer F> ? F : never>;
-    /**
-     * A function that returns a boolean indicating if the form is valid.
-     * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
-     */
-    isValidCallback?: (form: F) => boolean;
-  }
+  options: S extends FormState<any>
+    ? {
+        /**
+         * The path to the form in the store (optional when S is directly a FormState)
+         */
+        formPath?: K;
+        /**
+         * The function to get the schema for the form. This is useful for custom validation logic.
+         * It can be a function that returns a Zod schema or a Zod schema itself.
+         */
+        getSchema?: (
+          state: S
+        ) => ZodType<S extends FormState<infer U> ? U : never>;
+      }
+    : K extends undefined
+    ? never // Force an error when S is not FormState and no formPath is provided
+    : K extends DeepKeys<S>
+    ? {
+        /**
+         * The path to the form in the store (required when S is not directly a FormState)
+         */
+        formPath: K;
+        /**
+         * The function to get the schema for the form. This is useful for custom validation logic.
+         * It can be a function that returns a Zod schema or a Zod schema itself.
+         */
+        getSchema?: (
+          state: S
+        ) => ZodType<DeepValue<S, K> extends FormState<infer U> ? U : never>;
+      }
+    : never
 ): StateCreator<S, Mps, [...Mcs]> => {
-  return createFormComputer<S>()(options)(creator);
+  return createFormComputer<S>()(options as any)(creator);
 };
 
-export function createFormComputer<S extends object>() {
+function createFormComputer<S extends object>() {
   return function <
     K extends DeepKeys<S> | undefined,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     F extends K extends DeepKeys<S>
       ? DeepValue<S, K>
       : S = K extends DeepKeys<S> ? DeepValue<S, K> : S
   >(options?: {
-    /**
-     * The function to get the schema for the form. This is useful for custom validation logic.
-     * It can be a function that returns a Zod schema or a Zod schema itself.
-     */
     getSchema?: (
       state: S
-    ) => ZodType<F extends FormState<infer F> ? F : never> | undefined;
-    /**
-     * The path to the form in the store. Note: this will override whatever formpath in the store provider if used.
-     */
+    ) => ZodType<F extends FormState<infer U> ? U : never> | undefined;
     formPath?: K;
-    /**
-     * A function that returns a boolean indicating if the form is valid.
-     * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
-     */
-    isValidCallback?: (form: F) => boolean;
   }) {
-    const { formPath, getSchema, isValidCallback } = options || {};
+    const { formPath, getSchema } = options || {};
     return createComputer<S>((state) => {
       const schema = getSchema?.(state);
       return produce(state, (draft) => {
-        const form = safeGet(draft, formPath ?? '') as FormState<any>;
+        const form = getWithOptionalPath(
+          draft,
+          formPath as string
+        ) as FormState<any>;
         if (!form) return;
 
         const errors = (schema ?? object({})).safeParse(form.values);
         const errorsFormatted = errors.error?.format();
 
-        safeSet(draft, formPath, {
+        setWithOptionalPath(draft, formPath as string, {
           ...form,
-          isValid: isValidCallback
-            ? isValidCallback(form as F)
-            : errors.success,
           errors: errorsFormatted,
         });
       });
@@ -393,13 +351,12 @@ export function getScopedFormApi<
 export function getFormApi<
   S extends object,
   K extends DeepKeys<S>,
-  V = K extends DeepKeys<S> ? DeepValue<S, K> : S,
-  F = V extends FormState<infer X> ? X : never
->(store: StoreApi<S>, formPath: K = '' as K): StoreApi<F> {
-  return getScopedApi(store, formPath) as StoreApi<F>;
+  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
+>(store: StoreApi<S>, formPath: K): StoreApi<V> {
+  return getScopedApi(store, formPath) as StoreApi<V>;
 }
 
-function mergePaths(
+export function mergePaths(
   ...paths: (DeepKeys<any> | undefined)[]
 ): string | undefined {
   const nonNullPaths = paths.filter((p) => p !== undefined);
@@ -412,104 +369,16 @@ function mergePaths(
   return toPath(mergedPath).join('.') as string;
 }
 
-function getWithOptionalPath(state: object, path: string | undefined) {
+export function getWithOptionalPath(state: object, path: string | undefined) {
   if (!path) return state;
   return get(state, path);
 }
 
-function setWithOptionalPath(
+export function setWithOptionalPath(
   state: object,
   path: string | undefined,
   value: any
 ) {
   if (!path) return Object.assign(state, value);
   return set(state, path, value);
-}
-
-export function FormController<
-  S extends object,
-  C,
-  K extends DeepKeys<S> | undefined = undefined,
-  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
->(props: {
-  store: StoreApi<FormState<S>>;
-  name?: K;
-  contextSelector?: (state: S) => C;
-  render: (props: FormRenderProps<V, C, S>) => JSX.Element;
-  options?: {
-    useStore?: (
-      storeApi: StoreApi<FormState<S>>,
-      callback: (selector: FormState<S>) => any
-    ) => any;
-  };
-}): JSX.Element {
-  const { store, name, render, contextSelector, options } = props;
-
-  const { useStore = useStoreZustand } = options || {};
-
-  const scopedStore = useMemo(
-    () =>
-      (name ? getScopedFormApi(store, name) : store) as StoreApi<FormState<V>>,
-    [store, name]
-  );
-
-  const value = useStore(store, (state) =>
-    getWithOptionalPath(state.values, mergePaths(name))
-  );
-  const error = useStore(store, (state) =>
-    getWithOptionalPath(state, mergePaths('errors', name))
-  );
-  const context = useStore(store, (state) => {
-    if (!contextSelector) return undefined;
-    const values = getWithOptionalPath(state.values, mergePaths(name));
-    if (!values) return undefined;
-    return contextSelector(values);
-  });
-
-  return render({
-    value: value,
-    onBlur: () => {
-      produceStore(scopedStore, (state) => {
-        setWithOptionalPath(
-          state,
-          mergePaths('touched', name, '_touched'),
-          true
-        );
-      });
-    },
-    onChange: useCallback(
-      (value, form) => {
-        produceStore(scopedStore, (state) => {
-          if (!state.values) return;
-
-          const newValue =
-            typeof value === 'function'
-              ? (value as AnyFunction)(
-                  getWithOptionalPath(state.values, name as any)
-                )
-              : value;
-
-          setWithOptionalPath(state.values, mergePaths(name), newValue);
-
-          if (form) {
-            const newValues =
-              typeof form === 'function'
-                ? (form as AnyFunction)(state.values)
-                : form;
-            state.values = newValues;
-          }
-
-          setWithOptionalPath(
-            state,
-            mergePaths('touched', name, '_touched'),
-            true
-          );
-          setWithOptionalPath(state, mergePaths('dirty', name, '_dirty'), true);
-        });
-      },
-      [name, scopedStore]
-    ),
-    error: error,
-    context: context as any,
-  });
 }

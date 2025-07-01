@@ -106,7 +106,7 @@ export type FormState<T> = {
   isSubmitting: boolean;
 };
 
-type Nested<T, O> = O &
+export type Nested<T, O> = O &
   Partial<{
     [K in keyof T]: T[K] extends object
       ? Nested<T[K], O>
@@ -114,3 +114,28 @@ type Nested<T, O> = O &
       ? Array<Nested<U, O>>
       : O;
   }>;
+
+export type FormRenderProps<T, A, F> = {
+  /**
+   * The value of the field. This is the value that is stored in the form state.
+   */
+  value: T;
+  /**
+   * The function to call when the value changes.
+   * It can be a value or a function that returns a value.
+   */
+  onChange: (value: T | ((value: T) => T), form?: F | ((form: F) => F)) => void;
+  /**
+   * The function to call when the input is blurred.
+   * It can be used to trigger validation or other side effects.
+   */
+  onBlur?: () => void;
+  /**
+   * The error object for the field.
+   */
+  error?: ZodFormattedError<T>;
+  /**
+   * The context object for the field. Evaluated from the contextSelector.
+   */
+  context: A;
+};
