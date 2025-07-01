@@ -1,222 +1,242 @@
 import { z } from 'zod';
 import { create } from 'zustand';
-import {
-  getDefaultForm,
-  FormState,
-  createFormController,
-  withForm,
-} from 'zustorm';
+import { getDefaultForm, FormState, FormController, withForm } from 'zustorm';
 
-type Form = {
+type UserForm = {
   name: string;
+  email: string;
   address: {
     street: string;
-    street2?: string;
     city: string;
     zip: string;
   };
-  hobbies: {
-    name: string;
-  }[];
 };
 
-const useStore = create<FormState<Form>>()(
+const useUserForm = create<FormState<UserForm>>()(
   withForm(
     () =>
-      getDefaultForm({
+      getDefaultForm<UserForm>({
         name: 'John Doe',
+        email: 'john@example.com',
         address: {
           street: '123 Main St',
           city: 'Anytown',
           zip: '12345',
         },
-        hobbies: [{ name: 'Jane' }],
       }),
     {
       getSchema: () =>
         z.object({
-          name: z.string().nonempty(),
+          name: z.string().min(1, 'Name is required'),
+          email: z.string().email('Invalid email'),
           address: z.object({
-            street: z.string().nonempty(),
-            street2: z.string().optional(),
-            city: z.string().nonempty(),
-            zip: z.string().nonempty(),
+            street: z.string().min(1, 'Street is required'),
+            city: z.string().min(1, 'City is required'),
+            zip: z.string().min(1, 'ZIP is required'),
           }),
-          hobbies: z.array(
-            z.object({
-              name: z.string().nonempty(),
-            })
-          ),
         }),
     }
   )
 );
 
-const FormController = createFormController(useStore);
-
 function App() {
-  const isValid = useStore((state) => state.isValid);
-  const isTouched = useStore((state) => state.isTouched);
-  const isDirty = useStore((state) => state.isDirty);
+  const isValid = useUserForm((state) => !state.errors);
+  const isDirty = useUserForm(
+    (state) => state.dirty && Object.keys(state.dirty).length > 0
+  );
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isValid) {
+      const formData = useUserForm.getState().values;
+      console.log('Form submitted:', formData);
+      alert('Form submitted! Check console for data.');
+    } else {
+      alert('Please fix validation errors before submitting.');
+    }
+  };
 
   return (
-    <div style={{ padding: '20px', display: 'flex', gap: '20px' }}>
-      <label>Form</label>
-      <ul>
-        <FormController
-          name="name"
-          render={({ value, onChange, error, onBlur }) => (
-            <li>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onBlur={onBlur}
-                style={{
-                  outline: error?._errors ? '1px solid red' : undefined,
-                }}
-              />
-            </li>
-          )}
-        />
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+      <h1>🌐 Global State Example</h1>
+      <p>Using Zustand global store with withForm enhancement</p>
 
-        <FormController
-          name="address.street"
-          render={({ value, onChange, error, onBlur }) => (
-            <li>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onBlur={onBlur}
-                style={{
-                  outline: error?._errors ? '1px solid red' : undefined,
-                }}
-              />
-            </li>
-          )}
-        />
-        <FormController
-          name="address.street2"
-          render={({ value, onChange, onBlur }) => (
-            <li>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onBlur={onBlur}
-              />
-            </li>
-          )}
-        />
+      <form
+        onSubmit={onSubmit}
+        style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+      >
+        <div>
+          <label>Name:</label>
+          <FormController
+            store={useUserForm}
+            name="name"
+            render={({ value, onChange, error }) => (
+              <div>
+                <input
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderColor: error ? 'red' : 'gray',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                  }}
+                />
+                {error && (
+                  <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                )}
+              </div>
+            )}
+          />
+        </div>
 
-        <FormController
-          name="address.city"
-          render={({ value, onChange, error, onBlur }) => (
-            <li>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onBlur={onBlur}
-                style={{
-                  outline: error?._errors ? '1px solid red' : undefined,
-                }}
-              />
-            </li>
-          )}
-        />
+        <div>
+          <label>Email:</label>
+          <FormController
+            store={useUserForm}
+            name="email"
+            render={({ value, onChange, error }) => (
+              <div>
+                <input
+                  type="email"
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    borderColor: error ? 'red' : 'gray',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                  }}
+                />
+                {error && (
+                  <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                )}
+              </div>
+            )}
+          />
+        </div>
 
-        <FormController
-          name="address.zip"
-          render={({ value, onChange, error, onBlur }) => (
-            <li>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onBlur={onBlur}
-                style={{
-                  outline: error?._errors ? '1px solid red' : undefined,
-                }}
-              />
-            </li>
-          )}
-        />
+        <fieldset style={{ border: '1px solid #ccc', padding: '16px' }}>
+          <legend>Address</legend>
 
-        <label>Hobbies</label>
-        <FormController
-          name="hobbies"
-          render={({ value, onChange }) => (
-            <ul>
-              {value.map((_, index) => (
-                <li key={index}>
-                  <FormController
-                    name={`hobbies.${index}.name`}
-                    render={({ value, onChange, error, onBlur }) => (
-                      <input
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        onBlur={onBlur}
-                        style={{
-                          outline: error?._errors ? '1px solid red' : undefined,
-                        }}
-                      />
-                    )}
-                  />
-
-                  <button
-                    onClick={() => {
-                      const newHobbies = [...value];
-                      newHobbies.splice(index, 1);
-                      onChange(newHobbies);
+          <div style={{ marginBottom: '12px' }}>
+            <label>Street:</label>
+            <FormController
+              store={useUserForm}
+              name="address.street"
+              render={({ value, onChange, error }) => (
+                <div>
+                  <input
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderColor: error ? 'red' : 'gray',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
                     }}
-                  >
-                    Remove Hobby
-                  </button>
-                </li>
-              ))}
-              <button
-                onClick={() => {
-                  const newHobby = { name: '' };
-                  onChange([...value, newHobby]);
-                }}
-              >
-                Add Hobby
-              </button>
-            </ul>
-          )}
-        />
-      </ul>
+                  />
+                  {error && (
+                    <div style={{ color: 'red', fontSize: '12px' }}>
+                      {error}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
 
-      <FormController
-        render={(field) => (
-          <pre
+          <div style={{ marginBottom: '12px' }}>
+            <label>City:</label>
+            <FormController
+              store={useUserForm}
+              name="address.city"
+              render={({ value, onChange, error }) => (
+                <div>
+                  <input
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderColor: error ? 'red' : 'gray',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                    }}
+                  />
+                  {error && (
+                    <div style={{ color: 'red', fontSize: '12px' }}>
+                      {error}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+
+          <div>
+            <label>ZIP:</label>
+            <FormController
+              store={useUserForm}
+              name="address.zip"
+              render={({ value, onChange, error }) => (
+                <div>
+                  <input
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderColor: error ? 'red' : 'gray',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                    }}
+                  />
+                  {error && (
+                    <div style={{ color: 'red', fontSize: '12px' }}>
+                      {error}
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
+        </fieldset>
+
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ marginBottom: '10px' }}>
+            <span
+              style={{
+                color: isValid ? 'green' : 'red',
+                marginRight: '16px',
+              }}
+            >
+              {isValid ? '✅ Valid' : '❌ Invalid'}
+            </span>
+            <span style={{ color: isDirty ? 'orange' : 'blue' }}>
+              {isDirty ? '📝 Modified' : '🔒 Unchanged'}
+            </span>
+          </div>
+
+          <button
+            type="submit"
+            disabled={!isValid || !isDirty}
             style={{
-              background: isValid ? 'lightgreen' : 'lightcoral',
-              padding: '10px',
-              borderRadius: '5px',
+              padding: '12px 24px',
+              backgroundColor: !isValid || !isDirty ? '#ccc' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: !isValid || !isDirty ? 'not-allowed' : 'pointer',
             }}
           >
-            {JSON.stringify(field.value, null, 2)}
-          </pre>
-        )}
-      />
-      <div>
-        <div
-          style={{
-            border: '1px solid black',
-            padding: '10px',
-            borderRadius: '5px',
-          }}
-        >
-          {isTouched ? 'Touched' : 'Not Touched'}
+            Submit Form
+          </button>
         </div>
-        <div
-          style={{
-            border: '1px solid black',
-            padding: '10px',
-            borderRadius: '5px',
-          }}
-        >
-          {isDirty ? 'Dirty' : 'Not Dirty'}
-        </div>
-      </div>
+      </form>
     </div>
   );
 }

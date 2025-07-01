@@ -2,7 +2,7 @@ export {
   createFormStore,
   getDefaultForm,
   withForm,
-  getFormApi as getFormApi,
+  getFormApi,
   useFormStore,
 } from './utils';
 export { FormStoreProvider, FormController } from './components';

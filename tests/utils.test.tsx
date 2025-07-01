@@ -57,7 +57,6 @@ describe('getScopedFormState', () => {
   it('should return a scoped form state with the correct type', () => {
     const formState: FormState<{ test: { value: string } }> = {
       values: { test: { value: 'initial' } },
-      isSubmitting: false,
     };
 
     const scopedState = getScopedFormState(formState, 'test');
@@ -67,7 +66,6 @@ describe('getScopedFormState', () => {
   it('should return a scoped form state with path as array of strings', () => {
     const formState: FormState<{ test: { value: string } }> = {
       values: { test: { value: 'initial' } },
-      isSubmitting: false,
     };
 
     const scopedState = getScopedFormState(formState, ['test'] as const);
@@ -81,7 +79,6 @@ describe('getScopedFormApi', () => {
       () => ({
         values: { test: { value: 'initial' } },
         errors: undefined,
-        isSubmitting: false,
       })
     );
 
@@ -96,7 +93,6 @@ describe('getScopedFormApi', () => {
       () => ({
         values: { test: { value: 'initial' } },
         errors: undefined,
-        isSubmitting: false,
       })
     );
 
@@ -111,7 +107,6 @@ describe('getScopedFormApi', () => {
       () => ({
         values: { test: { value: 'initial' } },
         errors: undefined,
-        isSubmitting: false,
       })
     );
 
@@ -130,7 +125,6 @@ describe('getScopedFormApi', () => {
       () => ({
         values: { test: { value: 'initial' } },
         errors: undefined,
-        isSubmitting: false,
       })
     );
 
@@ -157,7 +151,6 @@ describe('form.utils', () => {
 
     const state = formStore.getState();
     expect(state.values).toEqual(defaultValues);
-    expect(state.isSubmitting).toBe(false);
   });
 
   it('should validate form values against schema', () => {
@@ -224,7 +217,6 @@ describe('form.utils', () => {
     const form = getDefaultForm(defaultValues);
 
     expect(form.values).toEqual(defaultValues);
-    expect(form.isSubmitting).toBe(false);
   });
 
   it('should create a plain zustand store and use form controller to access it', () => {
@@ -1030,5 +1022,85 @@ describe('form state integration', () => {
     expect(formStore.getState().errors).toBeUndefined();
     expect(formStore.getState().touched?.name?._touched).toBeUndefined();
     expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
+  });
+
+  it('should handle form state dynamic arrays', () => {
+    const schema = z.object({
+      items: z.array(
+        z.object({
+          name: z.string().min(1, 'Name is required'),
+        })
+      ),
+    });
+    const defaultValues = { items: [{ name: '' }] };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="items"
+        render={({ value, onChange }) => (
+          <div>
+            {value.map((item, index) => (
+              <input
+                key={index}
+                data-testid={`item-input-${index}`}
+                value={item.name}
+                onChange={(e) =>
+                  onChange(
+                    value.map((v, i) =>
+                      i === index ? { ...v, name: e.target.value } : v
+                    )
+                  )
+                }
+              />
+            ))}
+            <button
+              data-testid="add-item-button"
+              onClick={() => onChange([...value, { name: '' }])}
+            >
+              Add Item
+            </button>
+          </div>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const addButton = screen.getByTestId('add-item-button');
+    fireEvent.click(addButton);
+
+    const itemInputs = screen.getAllByTestId(/item-input-/);
+    expect(itemInputs.length).toBe(2); // One initial + one added
+
+    // Check initial error state
+    expect(formStore.getState().errors?.items?.[0]?.name?._errors).toContain(
+      'Name is required'
+    );
+
+    // Fill in the first item
+    fireEvent.change(itemInputs[0], { target: { value: 'Item 1' } });
+    expect(formStore.getState().values.items[0].name).toBe('Item 1');
+
+    // Check that error is cleared for the first item
+    expect(
+      formStore.getState().errors?.items?.[0]?.name?._errors
+    ).toBeUndefined();
+
+    // Fill in the second item
+    fireEvent.change(itemInputs[1], { target: { value: 'Item 2' } });
+    expect(formStore.getState().values.items[1].name).toBe('Item 2');
+
+    // Check that error is cleared for the second item
+    expect(
+      formStore.getState().errors?.items?.[1]?.name?._errors
+    ).toBeUndefined();
   });
 });

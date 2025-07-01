@@ -1,3 +1,7 @@
+# Zustorm
+
+[![npm version](https://badge.fury.io/js/zustorm.svg)](https://badge.fury.io/js/zustorm)
+[![Build Status](https://github.com/mooalot/zustorm/workflows/CI/badge.svg)](https://github.com/mooalot/zustorm/actions)
 [![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/mooalot/zustorm)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -8,114 +12,176 @@
 <img src="./zustorm-art.jpg" alt="Zustorm Logo" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; height: 100px; object-fit: cover;">
 </div>
 
-A way to use Zustand and Zod for form management.
+**Powerful form management with Zustand and Zod validation**
 
-## Features
+Zustorm combines the simplicity of Zustand with the power of Zod validation to create a type-safe, intuitive form management solution for React applications.
 
-- **Simple API**: Takes the complexity out of form management, just like Zustand does for state management.
-- **No Need For Documentation**: No need to read through complex documentation, because it just works.
-- **Type Safety**: Built with TypeScript, ensuring type safety and autocompletion.
-- **Validation**: Integrates with Zod for schema validation, making it easy to validate form data.
+## ✨ Features
 
-## Installation
+- **🎯 Simple & Intuitive** - Familiar Zustand patterns for form state
+- **🔒 Type Safe** - Full TypeScript support with automatic type inference
+- **✅ Built-in Validation** - Seamless Zod schema integration
+- **⚡ High Performance** - Granular updates and minimal re-renders
+- **🧩 Flexible Architecture** - Global stores or React Context patterns
+- **📦 Zero Dependencies** - Only peer deps: Zustand, Zod, and React
 
-To use Zustorm, you need to install the package along with Zustand and Zod. (I may add support for other validation libraries in the future.)
+## 📦 Installation
 
 ```bash
-npm install zustorm zod zustand
+npm install zustorm zustand zod react
 ```
 
-## Usage Example
+## 🚀 Quick Start
+
+### 🌐 Global State Pattern
 
 ```typescript
 import { z } from 'zod';
 import { create } from 'zustand';
-import {
-  getDefaultForm,
-  FormState,
-  createFormController,
-  withForm,
-} from 'zustorm';
+import { withForm, getDefaultForm, FormController } from 'zustorm';
 
-type Form = {
+type UserForm = {
   name: string;
+  email: string;
 };
 
-const useStore = create<FormState<Form>>()(
-  withForm(
-    () =>
-      getDefaultForm({
-        name: 'John Doe',
+const useUserForm = create(
+  withForm(() => getDefaultForm<UserForm>({ name: '', email: '' }), {
+    getSchema: () =>
+      z.object({
+        name: z.string().min(1, 'Name required'),
+        email: z.string().email('Invalid email'),
       }),
-    {
-      getSchema: () =>
-        z.object({
-          name: z.string().nonempty(),
-        }),
-    }
-  )
+  })
 );
 
-const FormController = createFormController(useStore);
+function UserForm() {
+  const { isValid, isDirty } = useUserForm();
 
-function Form() {
-  const isValid = useStore((state) => state.isValid);
-  const isTouched = useStore((state) => state.isTouched);
-  const isDirty = useStore((state) => state.isDirty);
+  return (
+    <form>
+      <FormController
+        store={useUserForm}
+        name="name"
+        render={({ value, onChange, error }) => (
+          <input value={value} onChange={(e) => onChange(e.target.value)} />
+        )}
+      />
+      <FormController
+        store={useUserForm}
+        name="email"
+        render={({ value, onChange, error }) => (
+          <input value={value} onChange={(e) => onChange(e.target.value)} />
+        )}
+      />
+      <button disabled={!isValid || !isDirty}>Submit</button>
+    </form>
+  );
+}
+```
 
+### 🔗 Context Pattern
+
+```typescript
+import { useMemo } from 'react';
+import {
+  createFormStore,
+  FormStoreProvider,
+  useFormStore,
+  FormController,
+} from 'zustorm';
+
+function App() {
+  const store = useMemo(
+    () =>
+      createFormStore(
+        { name: '', email: '' },
+        {
+          getSchema: () =>
+            z.object({
+              /* ... */
+            }),
+        }
+      ),
+    []
+  );
+
+  return (
+    <FormStoreProvider store={store}>
+      <UserForm />
+    </FormStoreProvider>
+  );
+}
+
+function UserForm() {
+  const store = useFormStore();
   return (
     <FormController
       name="name"
-      render={({ value, onChange, error, onBlur }) => (
-        <li>
-          <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur}
-            style={{
-              outline: error ? '1px solid red' : undefined,
-            }}
-          />
-        </li>
+      render={({ value, onChange }) => (
+        <input value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     />
   );
 }
 ```
 
-## Store or Controller?
+### 🔄 Arrays
 
-You can use either the store or the controller to manage your form state. The store is a Zustand store that holds the form state, while the controller is a component that provides a convenient way to interact with the form state. Either way, the form will be
-maintain its state and validation.
+```typescript
+<FormController
+  name="friends"
+  render={({ value, onChange }) => (
+    <div>
+      {value.map((_, index) => (
+        <FormController
+          key={index}
+          name={`friends.${index}.name`}
+          render={({ value, onChange }) => (
+            <input value={value} onChange={(e) => onChange(e.target.value)} />
+          )}
+        />
+      ))}
+      <button onClick={() => onChange([...value, { name: '' }])}>
+        Add Friend
+      </button>
+    </div>
+  )}
+/>
+```
 
-## API
+## 📚 API
 
-The following exports are available for managing form states and logic:
+| Function                           | Description                                   |
+| ---------------------------------- | --------------------------------------------- |
+| `withForm(creator, options)`       | Enhances Zustand store with form capabilities |
+| `createFormStore(values, options)` | Creates standalone form store                 |
+| `FormController`                   | Renders form fields with state binding        |
+| `FormStoreProvider`                | Provides form store context                   |
+| `useFormStore()`                   | Access form store from context                |
+| `getDefaultForm(values)`           | Returns default form state                    |
+| `getFormApi(store)`                | Access deep form API methods                  |
 
-| Export                 | Description                                                           |
-| ---------------------- | --------------------------------------------------------------------- |
-| `createFormStore`      | Creates a store to manage form state.                                 |
-| `createFormController` | Initializes a controller to handle form actions and interactions.     |
-| `useFormStoreContext`  | A hook to access the form store context within a component.           |
-| `getDefaultForm`       | Retrieves the default state of the form.                              |
-| `createFormComputer`   | Generates computed properties based on form state.                    |
-| `withForm`             | A higher-order function to enhance components with form capabilities. |
+## 🎯 Key Features
 
-### Components
+- **Type Safe** - Full TypeScript inference
+- **Zod Validation** - Automatic real-time validation
+- **Nested Data** - Use dot notation: `user.address.street`
+- **Arrays** - Dynamic arrays: `friends.${index}.name`
+- **Two Patterns** - Global state or React Context
 
-| Component           | Description                                          |
-| ------------------- | ---------------------------------------------------- |
-| `FormStoreProvider` | Provides the form store context to child components. |
+## 📖 Examples
 
-## More Examples
+Complete examples with styling and advanced features:
 
-- [Global Example](https://github.com/mooalot/zustorm/tree/main/examples/global)
+- [Global Store Example](https://github.com/mooalot/zustorm/tree/main/examples/global)
 - [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context)
+- [Array Handling Example](https://github.com/mooalot/zustorm/tree/main/examples/arrays)
 
-## License
+## 🤝 Contributing
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Contributing
+## 📄 License
 
-Contributions are welcome! Please open an issue or submit a pull request if you have suggestions or improvements.
+MIT License - see the [LICENSE](LICENSE) file for details.

@@ -106,14 +106,13 @@ function createFormComputer<S extends object>() {
 
 /**
  * Creates a default form state object with the provided initial values.
- * Sets up the basic structure with isSubmitting: false and the provided values.
+ * Sets up the basic structure with: false and the provided values.
  *
  * @param values - The initial values for the form
  * @returns A FormState object with default properties
  */
 export function getDefaultForm<T extends object>(values: T): FormState<T> {
   return {
-    isSubmitting: false,
     values,
   };
 }
@@ -227,7 +226,6 @@ export function getScopedFormState<
     errors: scopedErrors,
     dirty: scopedDirty,
     touched: scopedTouched,
-    isSubmitting: state.isSubmitting,
   };
 }
 
@@ -266,7 +264,6 @@ export function getScopedFormApi<
       setWithOptionalPath(draft, mergePaths('errors', path), newState.errors);
       setWithOptionalPath(draft, mergePaths('dirty', path), newState.dirty);
       setWithOptionalPath(draft, mergePaths('touched', path), newState.touched);
-      draft.isSubmitting = newState.isSubmitting;
     });
     store.setState(updatedState, replace as true);
   };

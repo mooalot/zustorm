@@ -103,11 +103,6 @@ export type FormState<T> = {
       _dirty?: boolean;
     }
   >;
-  /**
-   * If the form is submitting. This is a boolean value that indicates if the form is currently submitting or not.
-   * This value is here to be used when needed. You'll have to set it manually.
-   */
-  isSubmitting: boolean;
 };
 
 export type Nested<T, O> = O &

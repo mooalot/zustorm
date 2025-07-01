@@ -1,0 +1,221 @@
+/* App.css */
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.header h1 {
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+  font-size: 2.5rem;
+}
+
+.header p {
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+.form {
+  background: #f8fafc;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.form-section h2 {
+  color: #374151;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.friend-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.friend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.friend-header h3 {
+  margin: 0;
+  color: #374151;
+  font-size: 1.1rem;
+}
+
+.remove-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.remove-btn:hover:not(.disabled) {
+  background: #dc2626;
+}
+
+.remove-btn.disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.friend-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  gap: 1rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-group label {
+  color: #374151;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.field-group input {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.field-group input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.add-friend-btn {
+  width: 100%;
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.2s;
+}
+
+.add-friend-btn:hover {
+  background: #059669;
+}
+
+.form-actions {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.form-status {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.status {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.status.valid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status.invalid {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status.dirty {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status.clean {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.submit-btn {
+  width: 100%;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-btn:hover:not(.disabled) {
+  background: #2563eb;
+}
+
+.submit-btn.disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .friend-fields {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .form-status {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app {
+    padding: 1rem;
+  }
+}
