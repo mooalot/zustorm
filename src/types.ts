@@ -124,7 +124,12 @@ export type FormRenderProps<T, A, F> = {
    * The function to call when the value changes.
    * It can be a value or a function that returns a value.
    */
-  onChange: (value: T | ((value: T) => T), form?: F | ((form: F) => F)) => void;
+  onChange: (value: T | ((value: T) => T)) => void;
+  /**
+   * onFormChange is a function that can be used to update the form state.
+   * It can be a value or a function that returns a value.
+   */
+  onFormChange: (form: F | ((form: F) => F)) => void;
   /**
    * The function to call when the input is blurred.
    * It can be used to trigger validation or other side effects.
@@ -133,7 +138,31 @@ export type FormRenderProps<T, A, F> = {
   /**
    * The error object for the field.
    */
-  error?: ZodFormattedError<T>;
+  error?: Nested<
+    T,
+    {
+      _errors?: string[];
+    }
+  >;
+  /**
+   * The touched state of the field.
+   */
+  touched?: Nested<
+    T,
+    {
+      _touched?: boolean;
+    }
+  >;
+  /**
+   * If the field is dirty.
+   */
+  dirty?: Nested<
+    T,
+    {
+      _dirty?: boolean;
+    }
+  >;
+
   /**
    * The context object for the field. Evaluated from the contextSelector.
    */

@@ -193,17 +193,12 @@ export const createFormStore = <T extends object>(
      * It can be a function that returns a Zod schema or a Zod schema itself.
      */
     getSchema?: (state: FormState<T>) => ZodType<T>;
-    /**
-     * A function that returns a boolean indicating if the form is valid.
-     * This is useful for custom validation logic. Defaults to invalid if the schema is not valid.
-     */
-    isValidCallback?: (form: FormState<T>) => boolean;
   }
 ) => {
-  const formComputer = createFormComputer<FormState<T>>()(options as any);
-
   return createStore<FormState<T>>()(
-    formComputer(() => getDefaultForm(initialValue))
+    withForm(() => getDefaultForm(initialValue), {
+      getSchema: options?.getSchema,
+    })
   );
 };
 

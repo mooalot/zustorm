@@ -76,12 +76,14 @@ export function FormController<
 
   const value = useStore(scopedStore, (state) => state.values);
   const error = useStore(scopedStore, (state) => state.errors);
+  const touched = useStore(scopedStore, (state) => state.touched);
+  const dirty = useStore(scopedStore, (state) => state.dirty);
   const context = useStore(store, (state) => {
     if (!contextSelector) return undefined;
     const values = getWithOptionalPath(state.values, name as string);
     if (!values) return undefined;
     return contextSelector(values);
-  });
+  }) as C;
 
   return render({
     value: value,
@@ -90,8 +92,23 @@ export function FormController<
         set(state, ['touched', '_touched'], true);
       });
     },
+    onFormChange: useCallback(
+      (form) => {
+        produceStore(store, (state) => {
+          const newForm =
+            typeof form === 'function'
+              ? (form as AnyFunction)(state.values)
+              : form;
+
+          state.values = newForm;
+          set(state, ['touched', '_touched'], true);
+          set(state, ['dirty', '_dirty'], true);
+        });
+      },
+      [name, scopedStore]
+    ),
     onChange: useCallback(
-      (value, form) => {
+      (value) => {
         produceStore(scopedStore, (state) => {
           const newValue =
             typeof value === 'function'
@@ -100,21 +117,15 @@ export function FormController<
 
           state.values = newValue;
 
-          if (form) {
-            const newValues =
-              typeof form === 'function'
-                ? (form as AnyFunction)(state.values)
-                : form;
-            state.values = newValues;
-          }
-
           set(state, ['touched', '_touched'], true);
           set(state, ['dirty', '_dirty'], true);
         });
       },
       [name, scopedStore]
     ),
-    error: error,
-    context: context as any,
+    error,
+    touched,
+    dirty,
+    context,
   });
 }

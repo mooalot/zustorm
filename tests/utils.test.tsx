@@ -364,6 +364,36 @@ describe('form.utils', () => {
     const input = screen.getByTestId('plain-store-input') as HTMLInputElement;
     expect(input.value).toBe('Plain Store Test');
   });
+
+  it('should handle new form state with onChange', () => {
+    const defaultValues = { name: 'Initial Value', other: 'Other Value' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => z.object({ name: z.string(), other: z.string() }),
+    });
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onFormChange }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) =>
+              onFormChange({ name: e.target.value, other: 'Updated' })
+            }
+          />
+        )}
+      />
+    );
+
+    render(<MockForm />);
+
+    const input = screen.getByTestId('form-input') as HTMLInputElement;
+    expect(input.value).toBe('Initial Value');
+    fireEvent.change(input, { target: { value: 'New Value' } });
+    expect(formStore.getState().values.name).toBe('New Value');
+    expect(formStore.getState().values.other).toBe('Updated');
+  });
 });
 
 describe('form errors', () => {
@@ -933,5 +963,65 @@ describe('form state integration', () => {
     expect(updatedState.errors?.items?.[0]?.name?._errors).toBeUndefined();
     expect(updatedState.touched?.items?.[0]?.name?._touched).toBe(true);
     expect(updatedState.dirty?.items?.[0]?.name?._dirty).toBe(true);
+  });
+
+  it('should reset form state directly, including values, errors, touched, and dirty', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange, onBlur }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const input = screen.getByTestId('form-input');
+
+    // Change value
+    fireEvent.change(input, { target: { value: 'Updated Value' } });
+    expect(formStore.getState().values.name).toBe('Updated Value');
+
+    // Set touched and dirty
+    formStore.setState((state) => ({
+      ...state,
+      touched: { name: { _touched: true } },
+      dirty: { name: { _dirty: true } },
+    }));
+
+    expect(formStore.getState().touched?.name?._touched).toBe(true);
+    expect(formStore.getState().dirty?.name?._dirty).toBe(true);
+
+    // Reset form state
+    formStore.setState((state) => ({
+      ...state,
+      values: defaultValues,
+      errors: undefined,
+      touched: undefined,
+      dirty: undefined,
+    }));
+
+    // Check reset state
+    expect(formStore.getState().values.name).toBe('Test');
+    expect(formStore.getState().errors).toBeUndefined();
+    expect(formStore.getState().touched?.name?._touched).toBeUndefined();
+    expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
   });
 });
