@@ -365,3 +365,573 @@ describe('form.utils', () => {
     expect(input.value).toBe('Plain Store Test');
   });
 });
+
+describe('form errors', () => {
+  it('should show validation errors when form values are invalid', () => {
+    const schema = z.object({
+      email: z.string().email('Invalid email'),
+      age: z.number().min(18, 'Must be at least 18'),
+    });
+    const defaultValues = { email: 'invalid-email', age: 16 };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const state = formStore.getState();
+    expect(state.errors?.email?._errors).toContain('Invalid email');
+    expect(state.errors?.age?._errors).toContain('Must be at least 18');
+  });
+
+  it('should clear errors when form values become valid', () => {
+    const schema = z.object({
+      email: z.string().email('Invalid email'),
+    });
+    const defaultValues = { email: 'invalid-email' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    // Initially should have errors
+    expect(formStore.getState().errors?.email?._errors).toContain(
+      'Invalid email'
+    );
+
+    // Update to valid value
+    formStore.setState((state) => ({
+      ...state,
+      values: { email: 'test@example.com' },
+    }));
+
+    // Errors should be cleared
+    expect(formStore.getState().errors?.email?._errors).toBeUndefined();
+  });
+
+  it('should display errors in FormController', () => {
+    const schema = z.object({
+      name: z.string().min(2, 'Name must be at least 2 characters'),
+    });
+    const defaultValues = { name: 'a' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ error, value, onChange }) => (
+          <div>
+            <input
+              data-testid="form-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+            {error?._errors && (
+              <div data-testid="error-message">{error._errors[0]}</div>
+            )}
+          </div>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const errorMessage = screen.getByTestId('error-message');
+    expect(errorMessage.textContent).toBe('Name must be at least 2 characters');
+  });
+
+  it('should handle nested object validation errors', () => {
+    const schema = z.object({
+      user: z.object({
+        profile: z.object({
+          firstName: z.string().min(1, 'First name is required'),
+          lastName: z.string().min(1, 'Last name is required'),
+        }),
+      }),
+    });
+    const defaultValues = {
+      user: {
+        profile: {
+          firstName: '',
+          lastName: '',
+        },
+      },
+    };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const state = formStore.getState();
+    expect(state.errors?.user?.profile?.firstName?._errors).toContain(
+      'First name is required'
+    );
+    expect(state.errors?.user?.profile?.lastName?._errors).toContain(
+      'Last name is required'
+    );
+  });
+});
+
+describe('form touched state', () => {
+  it('should mark field as touched when onBlur is called', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange, onBlur }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    // Initially not touched
+    expect(formStore.getState().touched?.name?._touched).toBeUndefined();
+
+    const input = screen.getByTestId('form-input');
+    fireEvent.blur(input);
+
+    // Should be touched after blur
+    expect(formStore.getState().touched?.name?._touched).toBe(true);
+  });
+
+  it('should mark field as touched when onChange is called', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    // Initially not touched
+    expect(formStore.getState().touched?.name?._touched).toBeUndefined();
+
+    const input = screen.getByTestId('form-input');
+    fireEvent.change(input, { target: { value: 'New Value' } });
+
+    // Should be touched after change
+    expect(formStore.getState().touched?.name?._touched).toBe(true);
+  });
+
+  it('should handle touched state in nested forms', () => {
+    const schema = z.object({
+      user: z.object({
+        name: z.string(),
+      }),
+    });
+    const defaultValues = { user: { name: 'Test' } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={getScopedFormApi(formStore, 'user')}
+        name="name"
+        render={({ value, onChange, onBlur }) => (
+          <input
+            data-testid="nested-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+          />
+        )}
+      />
+    );
+
+    render(<MockForm />);
+
+    // Initially not touched
+    expect(formStore.getState().touched?.user?.name?._touched).toBeUndefined();
+
+    const input = screen.getByTestId('nested-input');
+    fireEvent.blur(input);
+
+    // Should be touched after blur
+    expect(formStore.getState().touched?.user?.name?._touched).toBe(true);
+  });
+
+  it('should persist touched state when value changes', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange, onBlur }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const input = screen.getByTestId('form-input');
+
+    // First blur to set touched
+    fireEvent.blur(input);
+    expect(formStore.getState().touched?.name?._touched).toBe(true);
+
+    // Change value
+    fireEvent.change(input, { target: { value: 'New Value' } });
+
+    // Should still be touched
+    expect(formStore.getState().touched?.name?._touched).toBe(true);
+  });
+});
+
+describe('form dirty state', () => {
+  it('should mark field as dirty when value changes', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    // Initially not dirty
+    expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
+
+    const input = screen.getByTestId('form-input');
+    fireEvent.change(input, { target: { value: 'New Value' } });
+
+    // Should be dirty after change
+    expect(formStore.getState().dirty?.name?._dirty).toBe(true);
+  });
+
+  it('should not mark field as dirty on blur without value change', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange, onBlur }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    // Initially not dirty
+    expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
+
+    const input = screen.getByTestId('form-input');
+    fireEvent.blur(input);
+
+    // Should still not be dirty after blur without value change
+    expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
+  });
+
+  it('should handle dirty state in nested forms', () => {
+    const schema = z.object({
+      user: z.object({
+        name: z.string(),
+      }),
+    });
+    const defaultValues = { user: { name: 'Test' } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={getScopedFormApi(formStore, 'user')}
+        name="name"
+        render={({ value, onChange }) => (
+          <input
+            data-testid="nested-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      />
+    );
+
+    render(<MockForm />);
+
+    // Initially not dirty
+    expect(formStore.getState().dirty?.user?.name?._dirty).toBeUndefined();
+
+    const input = screen.getByTestId('nested-input');
+    fireEvent.change(input, { target: { value: 'New Value' } });
+
+    // Should be dirty after change
+    expect(formStore.getState().dirty?.user?.name?._dirty).toBe(true);
+  });
+
+  it('should persist dirty state through multiple changes', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange }) => (
+          <input
+            data-testid="form-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const input = screen.getByTestId('form-input');
+
+    // First change
+    fireEvent.change(input, { target: { value: 'First Change' } });
+    expect(formStore.getState().dirty?.name?._dirty).toBe(true);
+
+    // Second change
+    fireEvent.change(input, { target: { value: 'Second Change' } });
+    expect(formStore.getState().dirty?.name?._dirty).toBe(true);
+  });
+
+  it('should work with functional value updates', () => {
+    const schema = z.object({ name: z.string() });
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="name"
+        render={({ value, onChange }) => (
+          <button
+            data-testid="update-button"
+            onClick={() => onChange((prev) => prev + ' Updated')}
+          >
+            Update
+          </button>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    // Initially not dirty
+    expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
+
+    const button = screen.getByTestId('update-button');
+    fireEvent.click(button);
+
+    // Should be dirty after functional update
+    expect(formStore.getState().dirty?.name?._dirty).toBe(true);
+    expect(formStore.getState().values.name).toBe('Test Updated');
+  });
+});
+
+describe('form state integration', () => {
+  it('should handle errors, touched, and dirty together', () => {
+    const schema = z.object({
+      email: z.string().email('Invalid email'),
+    });
+    const defaultValues = { email: '' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    const MockForm = () => {
+      const touched = useStore(
+        formStore,
+        (state) => state.touched?.email?._touched
+      );
+      const dirty = useStore(formStore, (state) => state.dirty?.email?._dirty);
+
+      return (
+        <FormController
+          store={formStore}
+          name="email"
+          render={({ value, onChange, onBlur, error }) => {
+            return (
+              <div>
+                <input
+                  data-testid="email-input"
+                  value={value}
+                  onChange={(e) => onChange(e.target.value)}
+                  onBlur={onBlur}
+                />
+                {error?._errors && (
+                  <div data-testid="error-message">{error._errors[0]}</div>
+                )}
+                <div data-testid="touched-state">
+                  {touched ? 'touched' : 'not-touched'}
+                </div>
+                <div data-testid="dirty-state">
+                  {dirty ? 'dirty' : 'not-dirty'}
+                </div>
+              </div>
+            );
+          }}
+        />
+      );
+    };
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const input = screen.getByTestId('email-input');
+
+    // Initially should have error but not be touched or dirty
+    expect(screen.getByTestId('error-message').textContent).toBe(
+      'Invalid email'
+    );
+    expect(screen.getByTestId('touched-state').textContent).toBe('not-touched');
+    expect(screen.getByTestId('dirty-state').textContent).toBe('not-dirty');
+
+    // Type invalid email
+    fireEvent.change(input, { target: { value: 'invalid' } });
+
+    // Should still have error, now touched and dirty
+    expect(screen.getByTestId('error-message').textContent).toBe(
+      'Invalid email'
+    );
+    expect(screen.getByTestId('touched-state').textContent).toBe('touched');
+    expect(screen.getByTestId('dirty-state').textContent).toBe('dirty');
+
+    // Type valid email
+    fireEvent.change(input, { target: { value: 'test@example.com' } });
+
+    // Error should be cleared, still touched and dirty
+    expect(screen.queryByTestId('error-message')).toBeNull();
+    expect(screen.getByTestId('touched-state').textContent).toBe('touched');
+    expect(screen.getByTestId('dirty-state').textContent).toBe('dirty');
+  });
+
+  it('should handle array validation with errors, touched, and dirty', () => {
+    const schema = z.object({
+      items: z.array(
+        z.object({
+          name: z.string().min(1, 'Name is required'),
+        })
+      ),
+    });
+    const defaultValues = { items: [{ name: '' }] };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () => schema,
+    });
+
+    // Check initial state
+    const state = formStore.getState();
+    expect(state.errors?.items?.[0]?.name?._errors).toContain(
+      'Name is required'
+    );
+
+    // Update the first item
+    formStore.setState((state) => ({
+      ...state,
+      values: { items: [{ name: 'Valid Name' }] },
+      touched: { items: [{ name: { _touched: true } }] },
+      dirty: { items: [{ name: { _dirty: true } }] },
+    }));
+
+    const updatedState = formStore.getState();
+    expect(updatedState.errors?.items?.[0]?.name?._errors).toBeUndefined();
+    expect(updatedState.touched?.items?.[0]?.name?._touched).toBe(true);
+    expect(updatedState.dirty?.items?.[0]?.name?._dirty).toBe(true);
+  });
+});

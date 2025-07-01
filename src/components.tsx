@@ -93,8 +93,6 @@ export function FormController<
     onChange: useCallback(
       (value, form) => {
         produceStore(scopedStore, (state) => {
-          if (!state.values) return;
-
           const newValue =
             typeof value === 'function'
               ? (value as AnyFunction)(state.values)
