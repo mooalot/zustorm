@@ -1,15 +1,6 @@
 import { useMemo } from 'react';
 import { z } from 'zod';
-import { create } from 'zustand';
-import {
-  getDefaultForm,
-  FormState,
-  createFormController,
-  withForm,
-  createFormStore,
-  HelloWorld,
-  FormStoreProvider,
-} from 'zustorm';
+import { createFormStore, FormStoreProvider } from 'zustorm';
 
 function App() {
   const store = useMemo(
@@ -26,14 +17,11 @@ function App() {
     []
   );
 
-  console.log('store', store);
+  return <FormStoreProvider store={store}></FormStoreProvider>;
+}
 
-  // return null;
-  return (
-    <FormStoreProvider store={store}>
-      <>hi</>
-    </FormStoreProvider>
-  );
+function Component() {
+  // const formStore = useFormS
 }
 
 export default App;
