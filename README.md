@@ -1,4 +1,12 @@
-# Zustorm
+[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/mooalot/zustorm)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm downloads](https://img.shields.io/npm/dm/zustorm.svg)](https://www.npmjs.com/package/zustorm)
+[![Bundle Size](https://img.shields.io/bundlephobia/minzip/zustorm)](https://bundlephobia.com/package/zustorm)
+
+<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; background-color: #000000; padding: 20px; border-radius: 10px;">
+<img src="./zustorm-art.jpg" alt="Zustorm Logo" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; height: 100px; object-fit: cover;">
+</div>
 
 A way to use Zustand and Zod for form management.
 
