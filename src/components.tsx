@@ -77,6 +77,7 @@ export function FormController<
   const value = useStore(scopedStore, (state) => state.values);
   const error = useStore(scopedStore, (state) => state.errors);
   const touched = useStore(scopedStore, (state) => state.touched);
+  console.log('touch changed', touched);
   const dirty = useStore(scopedStore, (state) => state.dirty);
   const context = useStore(store, (state) => {
     if (!contextSelector) return undefined;
@@ -87,11 +88,13 @@ export function FormController<
 
   return render({
     value: value,
-    onBlur: () => {
+    onBlur: useCallback(() => {
       produceStore(scopedStore, (state) => {
         set(state, ['touched', '_touched'], true);
       });
-    },
+      console.log(JSON.parse(JSON.stringify(scopedStore.getState())));
+      console.log(JSON.parse(JSON.stringify(store.getState())));
+    }, [scopedStore]),
     onFormChange: useCallback(
       (form) => {
         produceStore(store, (state) => {
@@ -105,7 +108,7 @@ export function FormController<
           set(state, ['dirty', '_dirty'], true);
         });
       },
-      [name, scopedStore]
+      [scopedStore]
     ),
     onChange: useCallback(
       (value) => {
@@ -120,8 +123,10 @@ export function FormController<
           set(state, ['touched', '_touched'], true);
           set(state, ['dirty', '_dirty'], true);
         });
+        console.log(JSON.parse(JSON.stringify(scopedStore.getState())));
+        console.log(JSON.parse(JSON.stringify(store.getState())));
       },
-      [name, scopedStore]
+      [scopedStore]
     ),
     error,
     touched,

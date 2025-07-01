@@ -245,7 +245,7 @@ export function getScopedFormApi<
         prevState,
         path
       ) as FormState<V>;
-      if (!isEqual(scopedState.values, scopedPrevState.values)) {
+      if (!isEqual(scopedState, scopedPrevState)) {
         listener(scopedState, scopedPrevState);
       }
     });

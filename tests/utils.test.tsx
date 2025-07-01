@@ -517,13 +517,18 @@ describe('form touched state', () => {
       <FormController
         store={formStore}
         name="name"
-        render={({ value, onChange, onBlur }) => (
-          <input
-            data-testid="form-input"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur}
-          />
+        render={({ value, onChange, onBlur, touched }) => (
+          <>
+            <input
+              data-testid="form-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onBlur}
+            />
+            <div data-testid="touched-state">
+              {touched?._touched ? 'Field is touched' : 'Field is not touched'}
+            </div>
+          </>
         )}
       />
     );
@@ -542,6 +547,8 @@ describe('form touched state', () => {
 
     // Should be touched after blur
     expect(formStore.getState().touched?.name?._touched).toBe(true);
+    const touchedState = screen.getByTestId('touched-state');
+    expect(touchedState.textContent).toBe('Field is touched');
   });
 
   it('should mark field as touched when onChange is called', () => {
