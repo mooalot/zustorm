@@ -31,10 +31,12 @@ To enable automatic publishing, you need to add your npm token as a GitHub secre
 ### 2. Package Publishing
 
 The workflow will only publish when:
+
 - You push to the `main` branch
 - The version in `package.json` has changed from what's published on npm
 
 To publish a new version:
+
 1. Update the version in `package.json`:
    ```bash
    npm version patch  # for bug fixes
@@ -49,6 +51,7 @@ To publish a new version:
    ```
 
 The workflow will automatically:
+
 - Run all tests
 - Build the package
 - Publish to npm
