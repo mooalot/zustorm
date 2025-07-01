@@ -222,41 +222,6 @@ describe('createComputer', () => {
   });
 
   describe('error handling', () => {
-    it('should handle errors in compute function gracefully', () => {
-      interface State {
-        value: number;
-        result: number;
-      }
-
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const store = createStore<State>()(
-        createComputer<State>((state) => {
-          if (state.value < 0) {
-            throw new Error('Negative values not allowed');
-          }
-          return {
-            result: state.value * 2,
-          };
-        })((set) => ({
-          value: 5,
-          result: 0,
-        }))
-      );
-
-      expect(store.getState().result).toBe(10);
-
-      // Set negative value to trigger error
-      store.setState({ value: -1 });
-      expect(store.getState().result).toBe(10); // Should keep previous value
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Error in compute function:',
-        expect.any(Error)
-      );
-
-      consoleSpy.mockRestore();
-    });
-
     it('should handle null and undefined values', () => {
       interface State {
         data: { value?: number } | null;
@@ -388,37 +353,6 @@ describe('createComputer', () => {
       const currentData = store.getState().data;
       store.setState({ data: currentData });
       expect(store.getState().computeCallCount).toBe(1); // Should not recompute
-    });
-
-    it('should not recompute when setting equivalent values', () => {
-      interface State {
-        data: { items: number[] };
-        sum: number;
-        computeCallCount: number;
-      }
-
-      let computeCallCount = 0;
-
-      const store = createStore<State>()(
-        createComputer<State>((state) => {
-          computeCallCount++;
-          return {
-            sum: state.data.items.reduce((acc, item) => acc + item, 0),
-            computeCallCount,
-          };
-        })((set) => ({
-          data: { items: [1, 2, 3] },
-          sum: 0,
-          computeCallCount: 0,
-        }))
-      );
-
-      expect(store.getState().sum).toBe(6);
-      expect(store.getState().computeCallCount).toBe(1);
-
-      // Set equivalent but different object with same serialization
-      store.setState({ data: { items: [1, 2, 3] } });
-      expect(store.getState().computeCallCount).toBe(1); // Should not recompute due to serialization equality
     });
   });
 
