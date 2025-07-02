@@ -53,7 +53,7 @@ const useUserForm = create(
 
 function UserForm() {
   const isValid = useUserForm((state) => !state.errors);
-  const isDirty = useUserForm((state) => state.isDirty);
+  const isDirty = useUserForm((state) => state.dirty);
 
   return (
     <form>
