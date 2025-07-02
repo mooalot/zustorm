@@ -152,10 +152,12 @@ function UserForm() {
 ```typescript
 import { useFormStore } from 'zustorm';
 import { useEffect } from 'react';
+import { useStore } from 'zustand';
+
 function UserForm() {
   const store = useFormStore();
 
-  const name = useFormStore((state) => state.values.name);
+  const name = useStore(store, (state) => state.values.name);
   const updateName = (newName: string) => {
     store.setState((state) => ({
       ...state,
@@ -170,6 +172,30 @@ function UserForm() {
     </form>
   );
 }
+```
+
+## Performance
+
+Zustorm allows all the flexiblity of Zustand's performance optimizations. This means you can use `useStore` or `useStoreWithEqualityFn` or any other hook you'd like to optimize your form state access.
+
+Here is how it is done with the FormController:
+
+```typescript
+<FormController
+  store={store}
+  name="name"
+  render={({ value, onChange }) => (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Name"
+    />
+  )}
+  options={{
+    useStore: (api, selector) =>
+      useStoreWithEqualityFn(api, selector, (a, b) => a === b),
+  }}
+/>
 ```
 
 ## API
