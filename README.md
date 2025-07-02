@@ -1,5 +1,3 @@
-# Zustorm
-
 <img src="./zustorm-art.jpg" alt="Zustorm Logo" style="max-width: 1000px; width: 100%; display: block; margin: 0 auto 20px auto;">
 
 [![npm version](https://img.shields.io/npm/v/zustorm?color=06172C&labelColor=000000&style=flat-square)](https://badge.fury.io/js/zustorm)
@@ -54,7 +52,8 @@ const useUserForm = create(
 );
 
 function UserForm() {
-  const { isValid, isDirty } = useUserForm();
+  const isValid = useUserForm((state) => !state.errors);
+  const isDirty = useUserForm((state) => state.isDirty);
 
   return (
     <form>
@@ -146,6 +145,31 @@ function UserForm() {
     </div>
   )}
 />
+```
+
+### Modifying Form with setState
+
+```typescript
+import { useFormStore } from 'zustorm';
+import { useEffect } from 'react';
+function UserForm() {
+  const store = useFormStore();
+
+  const name = useFormStore((state) => state.values.name);
+  const updateName = (newName: string) => {
+    store.setState((state) => ({
+      ...state,
+      values: { ...state.values, name: newName },
+    }));
+  };
+
+  return (
+    <form>
+      <input value={name} onChange={(e) => updateName(e.target.value)} />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
 ```
 
 ## API
