@@ -143,7 +143,10 @@ function NameField() {
               }}
             />
             {error && (
-              <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+              <div style={{ color: 'red', fontSize: '12px' }}>
+                {' '}
+                {JSON.stringify(error)}
+              </div>
             )}
           </div>
         )}
@@ -175,7 +178,10 @@ function EmailField() {
               }}
             />
             {error && (
-              <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+              <div style={{ color: 'red', fontSize: '12px' }}>
+                {' '}
+                {JSON.stringify(error)}
+              </div>
             )}
           </div>
         )}
@@ -209,7 +215,10 @@ function AddressFields() {
                 }}
               />
               {error && (
-                <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                <div style={{ color: 'red', fontSize: '12px' }}>
+                  {' '}
+                  {JSON.stringify(error)}
+                </div>
               )}
             </div>
           )}
@@ -235,7 +244,10 @@ function AddressFields() {
                 }}
               />
               {error && (
-                <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                <div style={{ color: 'red', fontSize: '12px' }}>
+                  {' '}
+                  {JSON.stringify(error)}
+                </div>
               )}
             </div>
           )}
@@ -261,7 +273,10 @@ function AddressFields() {
                 }}
               />
               {error && (
-                <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                <div style={{ color: 'red', fontSize: '12px' }}>
+                  {' '}
+                  {JSON.stringify(error)}
+                </div>
               )}
             </div>
           )}

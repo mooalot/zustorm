@@ -84,7 +84,9 @@ function App() {
                   }}
                 />
                 {error && (
-                  <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                  <div style={{ color: 'red', fontSize: '12px' }}>
+                    {JSON.stringify(error)}
+                  </div>
                 )}
               </div>
             )}
@@ -111,7 +113,10 @@ function App() {
                   }}
                 />
                 {error && (
-                  <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>
+                  <div style={{ color: 'red', fontSize: '12px' }}>
+                    {' '}
+                    {JSON.stringify(error)}
+                  </div>
                 )}
               </div>
             )}
@@ -141,7 +146,7 @@ function App() {
                   />
                   {error && (
                     <div style={{ color: 'red', fontSize: '12px' }}>
-                      {error}
+                      {JSON.stringify(error)}
                     </div>
                   )}
                 </div>
@@ -169,7 +174,7 @@ function App() {
                   />
                   {error && (
                     <div style={{ color: 'red', fontSize: '12px' }}>
-                      {error}
+                      {JSON.stringify(error)}
                     </div>
                   )}
                 </div>
@@ -197,7 +202,7 @@ function App() {
                   />
                   {error && (
                     <div style={{ color: 'red', fontSize: '12px' }}>
-                      {error}
+                      {JSON.stringify(error)}
                     </div>
                   )}
                 </div>
