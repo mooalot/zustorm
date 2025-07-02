@@ -105,10 +105,10 @@ export type FormState<T> = {
 
 export type Nested<T, O> = O &
   Partial<{
-    [K in keyof T]: T[K] extends object
+    [K in keyof T]: T[K] extends Array<infer U>
+      ? { [key: string]: Nested<U, O> }
+      : T[K] extends object
       ? Nested<T[K], O>
-      : T[K] extends Array<infer U>
-      ? Array<Nested<U, O>>
       : O;
   }>;
 

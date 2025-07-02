@@ -18,13 +18,13 @@ type Computed = <T extends object>(
   creator: StateCreator<T, [...Mps], Mcs>
 ) => StateCreator<T, Mps, [...Mcs]>;
 
-type Compute<T> = (state: T) => Partial<T>;
+type Compute<T> = (state: T, prev: T) => Partial<T>;
 
 export const createComputer =
   createComputerImplementation as unknown as Computed;
 
 function createComputerImplementation<T extends object>(
-  compute: (state: T) => Partial<T>
+  compute: (state: T, prev: T) => Partial<T>
 ): (creator: StateCreator<T>) => StateCreator<T> {
   return (creator) => {
     return (set, get, api) => {
@@ -49,7 +49,7 @@ function createComputerImplementation<T extends object>(
           proxyCache,
           targetCache
         );
-        const computed = compute(proxy);
+        const computed = compute(proxy, get());
         return getUntracked(computed) ?? computed;
       }
 

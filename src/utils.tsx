@@ -1,5 +1,13 @@
 import { produce, WritableDraft } from 'immer';
-import { get, isEqual, set, toPath } from 'lodash-es';
+import {
+  get,
+  isEqual,
+  set,
+  setWith,
+  toPath,
+  cloneDeep,
+  transform,
+} from 'lodash-es';
 import { createContext, useContext } from 'react';
 import { object, ZodType } from 'zod';
 import {
@@ -8,8 +16,8 @@ import {
   StoreApi,
   StoreMutatorIdentifier,
 } from 'zustand';
-import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
 import { createComputer } from './computer';
+import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
 
 export function produceStore<T>(
   useStore: { setState: StoreApi<T>['setState'] },
@@ -83,7 +91,8 @@ function createFormComputer<S extends object>() {
     formPath?: K;
   }) {
     const { formPath, getSchema } = options || {};
-    return createComputer<S>((state) => {
+
+    return createComputer<S>((state, prevState) => {
       const schema = getSchema?.(state);
       return produce(state, (draft) => {
         const form = getWithOptionalPath(
@@ -92,6 +101,27 @@ function createFormComputer<S extends object>() {
         ) as FormState<any>;
         if (!form) return;
 
+        const prevForm = getWithOptionalPath(
+          prevState,
+          formPath as string
+        ) as FormState<any>;
+
+        // Track value changes for touched/dirty propagation
+        const currentValues = form.values;
+        const previousValues = prevForm?.values;
+
+        if (previousValues && !isEqual(previousValues, currentValues)) {
+          // Find all changed paths and mark them as touched/dirty
+          const changedPaths = findChangedPaths(previousValues, currentValues);
+
+          // Mark changed paths and their parents as touched/dirty
+          changedPaths.forEach((path: string) => {
+            markPathAsTouched(form.touched, path);
+            markPathAsDirty(form.dirty, path);
+          });
+        }
+
+        // Validate with schema
         const errors = (schema ?? object({})).safeParse(form.values);
         const errorsFormatted = errors.error?.format();
 
@@ -329,5 +359,85 @@ export function setWithOptionalPath(
   value: any
 ) {
   if (!path) return Object.assign(state, value);
-  return set(state, path, value);
+  return setWith(state, path, value, Object);
+}
+
+/**
+ * Recursively finds all paths that have changed between two objects
+ * Uses lodash's transform for efficient traversal and comparison
+ */
+function findChangedPaths(
+  oldObj: any,
+  newObj: any,
+  currentPath: string = ''
+): string[] {
+  if (isEqual(oldObj, newObj)) {
+    return [];
+  }
+
+  // If either is primitive or null, or incompatible types, return current path
+  if (
+    oldObj == null ||
+    newObj == null ||
+    typeof oldObj !== 'object' ||
+    typeof newObj !== 'object' ||
+    Array.isArray(oldObj) !== Array.isArray(newObj)
+  ) {
+    return currentPath ? [currentPath] : [];
+  }
+
+  // Use lodash transform to efficiently find all changed paths
+  // We need to check both old and new objects to catch deletions
+  const allKeys = new Set([
+    ...Object.keys(oldObj || {}),
+    ...Object.keys(newObj || {}),
+  ]);
+
+  return transform(
+    Array.from(allKeys),
+    (result: string[], key: string) => {
+      const keyPath = currentPath ? `${currentPath}.${key}` : key;
+      const oldValue = oldObj?.[key];
+      const newValue = newObj?.[key];
+
+      if (!isEqual(oldValue, newValue)) {
+        result.push(...findChangedPaths(oldValue, newValue, keyPath));
+      }
+    },
+    [] as string[]
+  );
+}
+
+/**
+ * Generic function to mark a path and all its parent paths with a specific property
+ * Uses lodash utilities for efficient path manipulation
+ */
+function markPathWithProperty(
+  target: any,
+  path: string,
+  property: string
+): void {
+  if (!target || !path) return;
+
+  const pathSegments = toPath(path);
+
+  // Mark all parent paths (including the target path itself)
+  for (let i = 1; i <= pathSegments.length; i++) {
+    const currentPath = pathSegments.slice(0, i).join('.');
+    setWith(target, `${currentPath}.${property}`, true, Object);
+  }
+}
+
+/**
+ * Marks a path and all its parent paths as touched
+ */
+function markPathAsTouched(target: any, path: string): void {
+  markPathWithProperty(target, path, '_touched');
+}
+
+/**
+ * Marks a path and all its parent paths as dirty
+ */
+function markPathAsDirty(target: any, path: string): void {
+  markPathWithProperty(target, path, '_dirty');
 }

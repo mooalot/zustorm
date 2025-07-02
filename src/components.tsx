@@ -1,4 +1,3 @@
-import { set } from 'lodash-es';
 import { useCallback, useMemo } from 'react';
 import { StoreApi, useStore as useStoreZustand } from 'zustand';
 import {
@@ -13,6 +12,7 @@ import {
   getScopedFormApi,
   getWithOptionalPath,
   produceStore,
+  setWithOptionalPath,
 } from './utils';
 
 /**
@@ -109,7 +109,7 @@ export function FormController<
     value: value,
     onBlur: useCallback(() => {
       produceStore(scopedStore, (state) => {
-        set(state, ['touched', '_touched'], true);
+        setWithOptionalPath(state, 'touched._touched', true);
       });
     }, [scopedStore]),
     onFormChange: useCallback(
@@ -121,8 +121,6 @@ export function FormController<
               : form;
 
           state.values = newForm;
-          set(state, ['touched', '_touched'], true);
-          set(state, ['dirty', '_dirty'], true);
         });
       },
       [store]
@@ -136,9 +134,6 @@ export function FormController<
               : value;
 
           state.values = newValue;
-
-          set(state, ['touched', '_touched'], true);
-          set(state, ['dirty', '_dirty'], true);
         });
       },
       [scopedStore]
