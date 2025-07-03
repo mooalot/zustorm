@@ -1,11 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { z } from 'zod';
+import { z, ZodType } from 'zod';
 import { create, createStore, useStore } from 'zustand';
 import { FormController, FormStoreProvider } from '../src/components';
 import { FormState } from '../src/types';
 import {
-  createFormStore,
   getDefaultForm,
   getFormApi,
   getScopedApi,
@@ -15,6 +14,23 @@ import {
   useFormStore,
   withForm,
 } from '../src/utils';
+
+export const createFormStore = <T extends object>(
+  initialValue: T,
+  options?: {
+    /**
+     * The function to get the schema for the form. This is useful for custom validation logic.
+     * It can be a function that returns a Zod schema or a Zod schema itself.
+     */
+    getSchema?: (state: FormState<T>) => ZodType<T>;
+  }
+) => {
+  return createStore<FormState<T>>()(
+    withForm(() => getDefaultForm(initialValue), {
+      getSchema: options?.getSchema,
+    })
+  );
+};
 
 describe('setWithOptionalPath', () => {
   it('should set a value at the specified path', () => {

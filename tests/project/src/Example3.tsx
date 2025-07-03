@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { z } from 'zod';
-import { useStore } from 'zustand';
+import { createStore, useStore } from 'zustand';
 import {
-  createFormStore,
   FormController,
   FormStoreProvider,
+  getDefaultForm,
   useFormStore,
+  withForm,
 } from 'zustorm';
 
 type Form = {
@@ -16,18 +17,21 @@ type Form = {
 function UserContextForm() {
   const store = useMemo(
     () =>
-      createFormStore<Form>(
-        {
-          name: '',
-          email: '',
-        },
-        {
-          getSchema: () =>
-            z.object({
-              name: z.string().min(1, 'Name is required'),
-              email: z.string().email('Invalid email'),
+      createStore(
+        withForm(
+          () =>
+            getDefaultForm<Form>({
+              name: '',
+              email: '',
             }),
-        }
+          {
+            getSchema: () =>
+              z.object({
+                name: z.string().min(1, 'Name is required'),
+                email: z.string().email('Invalid email'),
+              }),
+          }
+        )
       ),
     []
   );

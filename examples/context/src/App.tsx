@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { z } from 'zod';
-import { useStore } from 'zustand';
+import { createStore, useStore } from 'zustand';
 import {
   FormStoreProvider,
   FormController,
-  createFormStore,
   useFormStore,
+  withForm,
+  getDefaultForm,
 } from 'zustorm';
 
 type UserForm = {
@@ -21,28 +22,31 @@ type UserForm = {
 function App() {
   const store = useMemo(
     () =>
-      createFormStore<UserForm>(
-        {
-          name: 'John Doe',
-          email: 'john@example.com',
-          address: {
-            street: '123 Main St',
-            city: 'Anytown',
-            zip: '12345',
-          },
-        },
-        {
-          getSchema: () =>
-            z.object({
-              name: z.string().min(1, 'Name is required'),
-              email: z.string().email('Invalid email'),
-              address: z.object({
-                street: z.string().min(1, 'Street is required'),
-                city: z.string().min(1, 'City is required'),
-                zip: z.string().min(1, 'ZIP is required'),
-              }),
+      createStore(
+        withForm(
+          () =>
+            getDefaultForm<UserForm>({
+              name: 'John Doe',
+              email: 'john@example.com',
+              address: {
+                street: '123 Main St',
+                city: 'Anytown',
+                zip: '12345',
+              },
             }),
-        }
+          {
+            getSchema: () =>
+              z.object({
+                name: z.string().min(1, 'Name is required'),
+                email: z.string().email('Invalid email'),
+                address: z.object({
+                  street: z.string().min(1, 'Street is required'),
+                  city: z.string().min(1, 'City is required'),
+                  zip: z.string().min(1, 'ZIP is required'),
+                }),
+              }),
+          }
+        )
       ),
     []
   );

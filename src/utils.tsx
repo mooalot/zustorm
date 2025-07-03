@@ -140,6 +140,13 @@ export function getDefaultForm<T extends object>(values: T): FormState<T> {
 }
 
 /**
+ * @deprecated Use `createStore` with `withForm` instead:
+ * ```ts
+ * const store = createStore<FormState<T>>()(
+ *   withForm(() => getDefaultForm(initialValue), { getSchema })
+ * );
+ * ```
+ *
  * Creates a Zustand store with form state management capabilities.
  * The store will automatically handle form validation, dirty/touched states, and submission states.
  *

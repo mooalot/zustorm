@@ -29,8 +29,6 @@ npm install zustorm zustand zod react
 
 ## Quick Start
 
-### Global State Pattern
-
 ```typescript
 import { z } from 'zod';
 import { create } from 'zustand';
@@ -77,32 +75,14 @@ function UserForm() {
 }
 ```
 
-### Context Pattern
+### Using Form Provider
 
 ```typescript
 import { useMemo } from 'react';
-import {
-  createFormStore,
-  FormStoreProvider,
-  useFormStore,
-  FormController,
-} from 'zustorm';
+import { FormStoreProvider, useFormStore, FormController } from 'zustorm';
 
 function App() {
-  const store = useMemo(
-    () =>
-      createFormStore(
-        { name: '', email: '' },
-        {
-          getSchema: () =>
-            z.object({
-              /* ... */
-            }),
-        }
-      ),
-    []
-  );
-
+  ...
   return (
     <FormStoreProvider store={store}>
       <UserForm />
@@ -114,6 +94,7 @@ function UserForm() {
   const store = useFormStore();
   return (
     <FormController
+      store={store}
       name="name"
       render={({ value, onChange }) => (
         <input value={value} onChange={(e) => onChange(e.target.value)} />
@@ -123,7 +104,9 @@ function UserForm() {
 }
 ```
 
-### Arrays
+`FormStoreProvider` also takes in an optional `options.name` to scope the form.
+
+### Dynamic Arrays
 
 ```typescript
 <FormController
@@ -147,7 +130,29 @@ function UserForm() {
 />
 ```
 
-### Modifying Form with setState
+### FormController ContextSelector
+
+The `FormController` also has a `contextSelector` prop to access the form store values. This is useful for accessing the form state without needing to cause re-renders for every field.
+
+```typescript
+<FormController
+  name="email"
+  contextSelector={(values) => values.name}
+  render={({ value, onChange, error, context }) => (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={`Hello ${context}`}
+    />
+  )}
+/>
+```
+
+Please note that `contextSelector` uses `options.useStore` internally, so this can be optimized further if needed.
+
+### Using Form Store Directly
+
+You can also use the form store directly without the `FormController` for granular control over rendering and state management. This is not recommended for most cases, but can be useful for advanced scenarios.
 
 ```typescript
 import { useFormStore } from 'zustorm';
@@ -166,10 +171,10 @@ function UserForm() {
   };
 
   return (
-    <form>
+    <div>
       <input value={name} onChange={(e) => updateName(e.target.value)} />
       <button type="submit">Submit</button>
-    </form>
+    </div>
   );
 }
 ```
@@ -182,15 +187,7 @@ Here is how it is done with the FormController:
 
 ```typescript
 <FormController
-  store={store}
-  name="name"
-  render={({ value, onChange }) => (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder="Name"
-    />
-  )}
+  ...
   options={{
     useStore: (api, selector) =>
       useStoreWithEqualityFn(api, selector, (a, b) => a === b),
@@ -200,15 +197,14 @@ Here is how it is done with the FormController:
 
 ## API
 
-| Function                           | Description                                   |
-| ---------------------------------- | --------------------------------------------- |
-| `withForm(creator, options)`       | Enhances Zustand store with form capabilities |
-| `createFormStore(values, options)` | Creates standalone form store                 |
-| `FormController`                   | Renders form fields with state binding        |
-| `FormStoreProvider`                | Provides form store context                   |
-| `useFormStore()`                   | Access form store from context                |
-| `getDefaultForm(values)`           | Returns default form state                    |
-| `getFormApi(store, formPath)`      | Access deep form API methods                  |
+| Function                      | Description                                   |
+| ----------------------------- | --------------------------------------------- |
+| `withForm(creator, options)`  | Enhances Zustand store with form capabilities |
+| `FormController`              | Renders form fields with state binding        |
+| `FormStoreProvider`           | Provides form store context                   |
+| `useFormStore()`              | Access form store from context                |
+| `getDefaultForm(values)`      | Returns default form state                    |
+| `getFormApi(store, formPath)` | Access deep form API methods                  |
 
 ## Key Features
 
