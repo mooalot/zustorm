@@ -116,6 +116,7 @@ function UserForm() {
       {value.map((_, index) => (
         <FormController
           key={index}
+          store={store}
           name={`friends.${index}.name`}
           render={({ value, onChange }) => (
             <input value={value} onChange={(e) => onChange(e.target.value)} />
@@ -136,6 +137,7 @@ The `FormController` also has a `contextSelector` prop to access the form store 
 
 ```typescript
 <FormController
+  store={store}
   name="email"
   contextSelector={(values) => values.name}
   render={({ value, onChange, error, context }) => (
@@ -149,6 +151,8 @@ The `FormController` also has a `contextSelector` prop to access the form store 
 ```
 
 Please note that `contextSelector` uses `options.useStore` internally, so this can be optimized further if needed.
+
+⚠️ **Important**: When using `contextSelector`, ensure the selected context value is stable to avoid unnecessary re-renders (or "Maximum update depth exceeded" errors in Zustand v5). Use stable selector functions or pass `useStoreWithEqualityFn` into the `options` prop of `FormController`.
 
 ### Using Form Store Directly
 
@@ -205,14 +209,6 @@ Here is how it is done with the FormController:
 | `useFormStore()`              | Access form store from context                |
 | `getDefaultForm(values)`      | Returns default form state                    |
 | `getFormApi(store, formPath)` | Access deep form API methods                  |
-
-## Key Features
-
-- **Type Safe** - Full TypeScript inference
-- **Zod Validation** - Automatic real-time validation
-- **Nested Data** - Use dot notation: `user.address.street`
-- **Arrays** - Dynamic arrays: `friends.${index}.name`
-- **Two Patterns** - Global state or React Context
 
 ## Examples
 
