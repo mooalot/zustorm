@@ -10,7 +10,6 @@ import {
 import {
   FormStoreContext,
   getScopedFormApi,
-  getWithOptionalPath,
   produceStore,
   setWithOptionalPath,
 } from './utils';

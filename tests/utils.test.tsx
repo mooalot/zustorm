@@ -14,8 +14,6 @@ import {
   useFormStore,
   withForm,
 } from '../src/utils';
-import { a } from 'vitest/dist/chunks/suite.BJU7kdY9.js';
-import { useStoreWithEqualityFn } from 'zustand/traditional';
 
 export const createFormStore = <T extends object>(
   initialValue: T,
