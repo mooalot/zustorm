@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { z, ZodType } from 'zod';
 import { create, createStore, useStore } from 'zustand';
@@ -14,6 +14,8 @@ import {
   useFormStore,
   withForm,
 } from '../src/utils';
+import { a } from 'vitest/dist/chunks/suite.BJU7kdY9.js';
+import { useStoreWithEqualityFn } from 'zustand/traditional';
 
 export const createFormStore = <T extends object>(
   initialValue: T,
@@ -1375,5 +1377,148 @@ describe('form state integration', () => {
     expect(
       useFriendsForm.getState().touched?.friends?.[0]?.name?._touched
     ).toBe(true);
+  });
+});
+
+describe('contextSelector', () => {
+  it('should return correct value with contextSelector', () => {
+    const defaultValues = { user: { name: 'John', age: 30 } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          user: z.object({
+            name: z.string(),
+            age: z.number(),
+          }),
+        }),
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        contextSelector={(state) => state.user}
+        render={({ context }) => (
+          <div>
+            <div data-testid="user-name">{context.name}</div>
+            <div data-testid="user-age">{context.age}</div>
+          </div>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    expect(screen.getByTestId('user-name').textContent).toBe('John');
+    expect(screen.getByTestId('user-age').textContent).toBe('30');
+
+    act(() => {
+      // Update the form value
+      formStore.setState((state) => ({
+        ...state,
+        values: { user: { name: 'Jane', age: 25 } },
+      }));
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('Jane');
+    expect(screen.getByTestId('user-age').textContent).toBe('25');
+  });
+
+  it('should work within form provider with contextSelector', () => {
+    const defaultValues = { user: { name: 'John', age: 30 } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          user: z.object({
+            name: z.string(),
+            age: z.number(),
+          }),
+        }),
+    });
+
+    const MockForm = () => {
+      const store = useFormStore<{
+        user: { name: string; age: number };
+      }>();
+      return (
+        <FormController
+          store={store}
+          contextSelector={(state) => state.user}
+          render={({ context }) => (
+            <div>
+              <div data-testid="user-name">{context.name}</div>
+              <div data-testid="user-age">{context.age}</div>
+            </div>
+          )}
+        />
+      );
+    };
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    expect(screen.getByTestId('user-name').textContent).toBe('John');
+    expect(screen.getByTestId('user-age').textContent).toBe('30');
+
+    act(() => {
+      // Update the form value
+      formStore.setState((state) => ({
+        ...state,
+        values: { user: { name: 'Jane', age: 25 } },
+      }));
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('Jane');
+    expect(screen.getByTestId('user-age').textContent).toBe('25');
+  });
+
+  it('should handle contextSelector with a named form controller', () => {
+    const defaultValues = { user: { name: 'John', age: 30 } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          user: z.object({
+            name: z.string(),
+            age: z.number(),
+          }),
+        }),
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        name="user"
+        contextSelector={(state) => state.user}
+        render={({ context }) => (
+          <div>
+            <div data-testid="user-name">{context.name}</div>
+            <div data-testid="user-age">{context.age}</div>
+          </div>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    expect(screen.getByTestId('user-name').textContent).toBe('John');
+    expect(screen.getByTestId('user-age').textContent).toBe('30');
+
+    act(() => {
+      // Update the form value
+      formStore.setState((state) => ({
+        ...state,
+        values: { user: { name: 'Jane', age: 25 } },
+      }));
+    });
+    expect(screen.getByTestId('user-name').textContent).toBe('Jane');
+    expect(screen.getByTestId('user-age').textContent).toBe('25');
   });
 });

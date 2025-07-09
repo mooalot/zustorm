@@ -100,9 +100,7 @@ export function FormController<
   const dirty = useStore(scopedStore, (state) => state.dirty);
   const context = useStore(store, (state) => {
     if (!contextSelector) return undefined;
-    const values = getWithOptionalPath(state.values, name as string);
-    if (!values) return undefined;
-    return contextSelector(values);
+    return contextSelector(state.values);
   }) as C;
 
   return render({
