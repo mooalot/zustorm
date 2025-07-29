@@ -1519,7 +1519,9 @@ describe('contextSelector', () => {
     expect(screen.getByTestId('user-name').textContent).toBe('Jane');
     expect(screen.getByTestId('user-age').textContent).toBe('25');
   });
+});
 
+describe('deepkey tuples', () => {
   it('should handle deep key tuples', () => {
     const defaultValues = {
       user: {
