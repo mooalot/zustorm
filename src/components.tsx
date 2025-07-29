@@ -25,7 +25,7 @@ import {
  */
 export function FormStoreProvider<
   T extends object,
-  K extends DeepKeys<T> | undefined = undefined
+  const K extends DeepKeys<T> | undefined = undefined
 >({
   children,
   store,

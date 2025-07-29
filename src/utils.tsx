@@ -30,7 +30,7 @@ export function produceStore<T>(
  */
 export const withForm = <
   S extends object,
-  K extends DeepKeys<S> | undefined = undefined,
+  const K extends DeepKeys<S> | undefined = undefined,
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = []
 >(
@@ -72,7 +72,7 @@ export const withForm = <
 
 function createFormComputer<S extends object>() {
   return function <
-    K extends DeepKeys<S> | undefined,
+    const K extends DeepKeys<S> | undefined,
     F extends K extends DeepKeys<S>
       ? DeepValue<S, K>
       : S = K extends DeepKeys<S> ? DeepValue<S, K> : S
@@ -193,7 +193,7 @@ export function useFormStore<S>() {
 
 export function getScopedApi<
   S extends object,
-  K extends DeepKeys<S>,
+  const K extends DeepKeys<S>,
   V = DeepValue<S, K>
 >(store: StoreApi<S>, path: K): StoreApi<V> {
   type Store = StoreApi<V>;
@@ -243,7 +243,7 @@ export function getScopedApi<
 
 export function getScopedFormState<
   S extends object,
-  K extends DeepKeys<S>,
+  const K extends DeepKeys<S>,
   V = DeepValue<S, K>
 >(state: FormState<S>, path: K): FormState<V> {
   const scopedState = get(state.values, path) as FormState<V>['values'];
@@ -260,7 +260,7 @@ export function getScopedFormState<
 
 export function getScopedFormApi<
   S extends object,
-  K extends DeepKeys<S>,
+  const K extends DeepKeys<S>,
   V = DeepValue<S, K>
 >(store: StoreApi<FormState<S>>, path: K): StoreApi<FormState<V>> {
   type Store = StoreApi<FormState<V>>;
@@ -328,7 +328,7 @@ export function getScopedFormApi<
  */
 export function getFormApi<
   S extends object,
-  K extends DeepKeys<S>,
+  const K extends DeepKeys<S>,
   V = K extends DeepKeys<S> ? DeepValue<S, K> : S
 >(store: StoreApi<S>, formPath: K): StoreApi<V> {
   return getScopedApi(store, formPath) as StoreApi<V>;
