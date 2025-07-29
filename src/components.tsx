@@ -69,7 +69,7 @@ export function FormStoreProvider<
 export function FormController<
   S extends object,
   C,
-  K extends DeepKeys<S> | undefined = undefined,
+  const K extends DeepKeys<S> | undefined = undefined,
   V = K extends DeepKeys<S> ? DeepValue<S, K> : S
 >(props: {
   store: StoreApi<FormState<S>>;

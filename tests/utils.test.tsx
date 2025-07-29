@@ -1519,4 +1519,73 @@ describe('contextSelector', () => {
     expect(screen.getByTestId('user-name').textContent).toBe('Jane');
     expect(screen.getByTestId('user-age').textContent).toBe('25');
   });
+
+  it('should handle deep key tuples', () => {
+    const defaultValues = {
+      user: {
+        profile: {
+          firstName: 'John',
+          lastName: 'Doe',
+        },
+      },
+    };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          user: z.object({
+            profile: z.object({
+              firstName: z.string(),
+              lastName: z.string(),
+            }),
+          }),
+        }),
+    });
+
+    const MockForm = () => (
+      <div>
+        <FormController
+          store={formStore}
+          name={['user', 'profile', 'firstName']}
+          render={({ value, onChange }) => (
+            <div>
+              <input value={value} onChange={(e) => onChange(e.target.value)} />
+              <div data-testid="first-name">{value}</div>
+            </div>
+          )}
+        />
+        <FormController
+          store={formStore}
+          name={['user', 'profile', 'lastName']}
+          render={({ value, onChange }) => (
+            <div>
+              <input value={value} onChange={(e) => onChange(e.target.value)} />
+              <div data-testid="last-name">{value}</div>
+            </div>
+          )}
+        />
+      </div>
+    );
+
+    render(<MockForm />);
+
+    expect(screen.getByTestId('first-name').textContent).toBe('John');
+    expect(screen.getByTestId('last-name').textContent).toBe('Doe');
+
+    act(() => {
+      formStore.setState((state) => ({
+        ...state,
+        values: {
+          user: {
+            profile: {
+              firstName: 'Jane',
+              lastName: 'Smith',
+            },
+          },
+        },
+      }));
+    });
+
+    expect(screen.getByTestId('first-name').textContent).toBe('Jane');
+    expect(screen.getByTestId('last-name').textContent).toBe('Smith');
+  });
 });
