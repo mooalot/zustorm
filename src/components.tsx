@@ -3,7 +3,7 @@ import { StoreApi, useStore as useStoreZustand } from 'zustand';
 import {
   AnyFunction,
   DeepKeys,
-  DeepValue,
+  FormControllerFunction,
   FormRenderProps,
   FormState,
 } from './types';
@@ -66,30 +66,24 @@ export function FormStoreProvider<
  * @param options.useStore - Custom store hook to use instead of the default zustand useStore
  * @returns JSX element from the render prop
  */
-export function FormController<
-  S extends object,
-  C,
-  const K extends DeepKeys<S> | undefined = undefined,
-  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
->(props: {
-  store: StoreApi<FormState<S>>;
-  name?: K;
-  contextSelector?: (state: S) => C;
-  render: (props: FormRenderProps<V, C, S>) => JSX.Element;
-  options?: {
-    useStore?: (
-      storeApi: StoreApi<FormState<any>>,
-      callback: (selector: FormState<S>) => any
-    ) => any;
-  };
-}): JSX.Element {
+export const FormController: FormControllerFunction = (props) => {
   const { store, name, render, contextSelector, options } = props;
 
   const { useStore = useStoreZustand } = options || {};
 
   const scopedStore = useMemo(
     () =>
-      (name ? getScopedFormApi(store, name) : store) as StoreApi<FormState<V>>,
+      (name ? getScopedFormApi(store, name) : store) as StoreApi<
+        FormState<
+          Parameters<(typeof props)['render']>[0] extends FormRenderProps<
+            infer V,
+            any,
+            any
+          >
+            ? V
+            : never
+        >
+      >,
     [store, name]
   );
 
@@ -100,7 +94,7 @@ export function FormController<
   const context = useStore(store, (state) => {
     if (!contextSelector) return undefined;
     return contextSelector(state.values);
-  }) as C;
+  }) as any;
 
   return render({
     value: value,
@@ -140,4 +134,4 @@ export function FormController<
     dirty,
     context,
   });
-}
+};

@@ -1,3 +1,5 @@
+import { StoreApi } from 'zustand';
+
 export type AnyFunction = (...args: any[]) => any;
 
 // Dot-notation string paths
@@ -165,3 +167,23 @@ export type FormRenderProps<T, A, F> = {
    */
   context: A;
 };
+
+export type FormControllerFunction<P = unknown> = <
+  S extends object,
+  C,
+  const K extends DeepKeys<S> | undefined = undefined,
+  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
+>(
+  props: P & {
+    store: StoreApi<FormState<S>>;
+    name?: K;
+    contextSelector?: (state: S) => C;
+    render: (props: FormRenderProps<V, C, S>) => JSX.Element;
+    options?: {
+      useStore?: <S, R>(
+        storeApi: StoreApi<FormState<S>>,
+        callback: (selector: FormState<S>) => R
+      ) => R;
+    };
+  }
+) => JSX.Element;

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { z, ZodType } from 'zod';
 import { create, createStore, useStore } from 'zustand';
 import { FormController, FormStoreProvider } from '../src/components';
-import { FormState } from '../src/types';
+import { FormControllerFunction, FormState } from '../src/types';
 import {
   getDefaultForm,
   getFormApi,
@@ -1589,5 +1589,64 @@ describe('deepkey tuples', () => {
 
     expect(screen.getByTestId('first-name').textContent).toBe('Jane');
     expect(screen.getByTestId('last-name').textContent).toBe('Smith');
+  });
+});
+
+describe('Custom FormController', () => {
+  it('should render custom FormController with scoped store', () => {
+    const CustomFormController: FormControllerFunction<{ title: string }> = ({
+      title,
+      ...props
+    }) => {
+      return (
+        <div>
+          <h2 data-testid="custom-form-title">{title}</h2>
+          <FormController {...props} />
+        </div>
+      );
+    };
+
+    const defaultValues = { name: 'Test' };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          name: z.string(),
+        }),
+    });
+
+    const MockForm = () => (
+      <CustomFormController
+        store={formStore}
+        name="name"
+        title="Custom Form Title"
+        render={({ value, onChange }) => (
+          <>
+            <div data-testid="form-value">{value}</div>
+            <input
+              data-testid="custom-form-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          </>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    expect(screen.getByTestId('custom-form-title').textContent).toBe(
+      'Custom Form Title'
+    );
+    expect(screen.getByTestId('form-value').textContent).toBe('Test');
+
+    const input = screen.getByTestId('custom-form-input');
+    fireEvent.change(input, { target: { value: 'Updated Value' } });
+
+    expect(screen.getByTestId('form-value').textContent).toBe('Updated Value');
+    expect(formStore.getState().values.name).toBe('Updated Value');
   });
 });
