@@ -10,7 +10,6 @@ import {
 import {
   FormStoreContext,
   getScopedFormApi,
-  produceStore,
   setWithOptionalPath,
 } from './utils';
 
@@ -99,32 +98,31 @@ export const FormController: FormControllerFunction = (props) => {
   return render({
     value: value,
     onBlur: useCallback(() => {
-      produceStore(scopedStore, (state) => {
-        setWithOptionalPath(state, 'touched._touched', true);
+      scopedStore.setState((state) => {
+        return setWithOptionalPath(state, 'touched._touched', true);
       });
     }, [scopedStore]),
     onFormChange: useCallback(
       (form) => {
-        produceStore(store, (state) => {
+        store.setState((state) => {
           const newForm =
             typeof form === 'function'
               ? (form as AnyFunction)(state.values)
               : form;
-
-          state.values = newForm;
+          return setWithOptionalPath(state, 'values', newForm);
         });
       },
       [store]
     ),
     onChange: useCallback(
       (value) => {
-        produceStore(scopedStore, (state) => {
+        scopedStore.setState((state) => {
           const newValue =
             typeof value === 'function'
               ? (value as AnyFunction)(state.values)
               : value;
 
-          state.values = newValue;
+          return setWithOptionalPath(state, 'values', newValue);
         });
       },
       [scopedStore]

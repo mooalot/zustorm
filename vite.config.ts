@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import dts from 'vite-plugin-dts';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [
+    react(),
     dts({
       rollupTypes: true,
       tsconfigPath: './tsconfig.json',
@@ -16,12 +18,13 @@ export default defineConfig({
       fileName: (format) => `index.${format}.js`, // Output file naming pattern
     },
     rollupOptions: {
-      external: ['react', 'zustand', 'zod'],
+      external: ['react', 'zustand', 'zod', 'react/jsx-runtime'], // External dependencies
       output: {
         globals: {
           react: 'React',
           zustand: 'Zustand',
           zod: 'Zod',
+          'react/jsx-runtime': 'jsxRuntime',
         },
       },
     },
