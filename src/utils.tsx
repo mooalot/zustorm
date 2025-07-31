@@ -1,4 +1,4 @@
-import { produce, WritableDraft } from 'immer';
+import { produce } from 'immer';
 import { get, isEqual, set, setWith, toPath, transform } from 'lodash-es';
 import { createContext, useContext } from 'react';
 import { object, ZodType } from 'zod';
@@ -10,13 +10,6 @@ import {
 } from 'zustand';
 import { createComputer } from './computer';
 import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
-
-export function produceStore<T>(
-  useStore: { setState: StoreApi<T>['setState'] },
-  producer: (draft: WritableDraft<T>) => void
-) {
-  useStore.setState((state) => produce(state, producer));
-}
 
 /**
  * A higher-order function that enhances a Zustand store creator with form management capabilities.
