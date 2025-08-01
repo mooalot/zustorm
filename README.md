@@ -218,6 +218,12 @@ Complete examples with styling and advanced features:
 - [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context)
 - [Array Handling Example](https://github.com/mooalot/zustorm/tree/main/examples/arrays)
 
+## TypeScript Compatibility
+
+This package's type definitions require **TypeScript 5.0 or higher** due to the use of `const` type parameters and other advanced type features.
+
+Make sure you're using TypeScript 5.0+ to take full advantage of type safety and autocomplete.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
