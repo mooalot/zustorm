@@ -178,11 +178,11 @@ export type FormRenderProps<
   name?: K;
 };
 
-export type FormControllerFunction = <
-  S extends object,
+export type FormControllerProps<
+  S,
   C,
-  const K extends DeepKeys<S> | undefined = undefined
->(props: {
+  K extends DeepKeys<S> | undefined = undefined
+> = {
   store: StoreApi<FormState<S>>;
   name?: K;
   contextSelector?: (state: S) => C;
@@ -193,4 +193,4 @@ export type FormControllerFunction = <
       callback: (selector: FormState<S>) => R
     ) => R;
   };
-}) => JSX.Element;
+};

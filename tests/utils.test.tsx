@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { z, ZodType } from 'zod';
 import { create, createStore, useStore } from 'zustand';
 import { FormController, FormStoreProvider } from '../src/components';
-import { FormControllerFunction, FormState } from '../src/types';
+import {
+  DeepKeys,
+  FormControllerProps,
+  FormRenderProps,
+  FormState,
+} from '../src/types';
 import {
   getDefaultForm,
   getFormApi,
@@ -1589,5 +1594,97 @@ describe('deepkey tuples', () => {
 
     expect(screen.getByTestId('first-name').textContent).toBe('Jane');
     expect(screen.getByTestId('last-name').textContent).toBe('Smith');
+  });
+});
+
+describe('should allow custom FormController', () => {
+  it('should allow custom FormController with custom render prop', () => {
+    const CustomFormController = <
+      S,
+      C,
+      const K extends DeepKeys<S> | undefined
+    >(
+      props: Omit<FormControllerProps<S, C, K>, 'render'> & {
+        title: string;
+        render: (
+          props: FormRenderProps<S, C, K> & { id: string }
+        ) => JSX.Element;
+      }
+    ) => {
+      return (
+        <FormController
+          {...props}
+          render={(renderProps) => {
+            const errors: string[] = renderProps?.error?._errors || [];
+            const touched = renderProps?.touched || false;
+            const id = 'test';
+
+            return (
+              <div className="field">
+                <label
+                  data-testid={`title-${id}`}
+                  className="field-label"
+                  htmlFor={id}
+                >
+                  {props.title}
+                </label>
+                <div className="field-input">
+                  {props.render({ ...renderProps, id })}
+                </div>
+                {touched && errors.length > 0 && (
+                  <ul className="field-errors">
+                    {errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          }}
+        />
+      );
+    };
+
+    const defaultValues = { user: { name: 'John', age: 30 } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          user: z.object({
+            name: z.string(),
+            age: z.number(),
+          }),
+        }),
+    });
+
+    const MockForm = () => (
+      <CustomFormController
+        store={formStore}
+        name="user.name"
+        title="User Name"
+        render={({ value, onChange, id }) => (
+          <input
+            data-testid={`custom-input-${id}`}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const input = screen.getByTestId('custom-input-test') as HTMLInputElement;
+    expect(input).toBeDefined();
+    expect(input.value).toBe('John');
+
+    expect(screen.getByTestId('title-test').textContent).toBe('User Name');
+
+    fireEvent.change(input, { target: { value: 'Jane' } });
+    expect(input.value).toBe('Jane');
+    expect(formStore.getState().values.user.name).toBe('Jane');
   });
 });

@@ -8,8 +8,8 @@ export {
 export { FormStoreProvider, FormController } from './components';
 export type {
   FormState,
-  FormControllerFunction,
   FormRenderProps,
+  FormControllerProps,
   DeepKeys,
   DeepValue,
 } from './types';

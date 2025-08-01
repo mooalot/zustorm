@@ -235,7 +235,7 @@ export function getScopedApi<
 }
 
 export function getScopedFormState<
-  S extends object,
+  S,
   const K extends DeepKeys<S>,
   V = DeepValue<S, K>
 >(state: FormState<S>, path: K): FormState<V> {
@@ -252,7 +252,7 @@ export function getScopedFormState<
 }
 
 export function getScopedFormApi<
-  S extends object,
+  S,
   const K extends DeepKeys<S>,
   V = DeepValue<S, K>
 >(store: StoreApi<FormState<S>>, path: K): StoreApi<FormState<V>> {

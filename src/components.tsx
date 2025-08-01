@@ -3,7 +3,7 @@ import { StoreApi, useStore as useStoreZustand } from 'zustand';
 import {
   AnyFunction,
   DeepKeys,
-  FormControllerFunction,
+  FormControllerProps,
   FormRenderProps,
   FormState,
 } from './types';
@@ -65,7 +65,11 @@ export function FormStoreProvider<
  * @param options.useStore - Custom store hook to use instead of the default zustand useStore
  * @returns JSX element from the render prop
  */
-export const FormController: FormControllerFunction = (props) => {
+export function FormController<
+  S,
+  C,
+  const K extends DeepKeys<S> | undefined = undefined
+>(props: FormControllerProps<S, C, K>): JSX.Element {
   const { store, name, render, contextSelector, options } = props;
 
   const { useStore = useStoreZustand } = options || {};
@@ -134,4 +138,4 @@ export const FormController: FormControllerFunction = (props) => {
     context,
     name,
   });
-};
+}
