@@ -75,9 +75,10 @@ export const FormController: FormControllerFunction = (props) => {
       (name ? getScopedFormApi(store, name) : store) as StoreApi<
         FormState<
           Parameters<(typeof props)['render']>[0] extends FormRenderProps<
-            infer V,
             any,
-            any
+            any,
+            any,
+            infer V
           >
             ? V
             : never
@@ -131,5 +132,6 @@ export const FormController: FormControllerFunction = (props) => {
     touched,
     dirty,
     context,
+    name,
   });
 };

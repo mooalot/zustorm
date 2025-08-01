@@ -6,4 +6,10 @@ export {
   useFormStore,
 } from './utils';
 export { FormStoreProvider, FormController } from './components';
-export type { FormState, FormControllerFunction } from './types';
+export type {
+  FormState,
+  FormControllerFunction,
+  FormRenderProps,
+  DeepKeys,
+  DeepValue,
+} from './types';

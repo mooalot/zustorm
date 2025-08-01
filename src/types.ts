@@ -114,21 +114,26 @@ export type Nested<T, O> = O &
       : O;
   }>;
 
-export type FormRenderProps<T, A, F> = {
+export type FormRenderProps<
+  S,
+  C,
+  K extends DeepKeys<S> | undefined = undefined,
+  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
+> = {
   /**
    * The value of the field. This is the value that is stored in the form state.
    */
-  value: T;
+  value: V;
   /**
    * The function to call when the value changes.
    * It can be a value or a function that returns a value.
    */
-  onChange: (value: T | ((value: T) => T)) => void;
+  onChange: (value: V | ((value: V) => V)) => void;
   /**
    * onFormChange is a function that can be used to update the form state.
    * It can be a value or a function that returns a value.
    */
-  onFormChange: (form: F | ((form: F) => F)) => void;
+  onFormChange: (form: S | ((form: S) => S)) => void;
   /**
    * The function to call when the input is blurred.
    * It can be used to trigger validation or other side effects.
@@ -138,7 +143,7 @@ export type FormRenderProps<T, A, F> = {
    * The error object for the field.
    */
   error?: Nested<
-    T,
+    V,
     {
       _errors?: string[];
     }
@@ -147,7 +152,7 @@ export type FormRenderProps<T, A, F> = {
    * The touched state of the field.
    */
   touched?: Nested<
-    T,
+    V,
     {
       _touched?: boolean;
     }
@@ -156,7 +161,7 @@ export type FormRenderProps<T, A, F> = {
    * If the field is dirty.
    */
   dirty?: Nested<
-    T,
+    V,
     {
       _dirty?: boolean;
     }
@@ -165,25 +170,27 @@ export type FormRenderProps<T, A, F> = {
   /**
    * The context object for the field. Evaluated from the contextSelector.
    */
-  context: A;
+  context: C;
+  /**
+   * The name of the field. This is used to identify the field in the form state.
+   * If K is provided, it will be a tuple of keys.
+   */
+  name?: K;
 };
 
-export type FormControllerFunction<P = unknown> = <
+export type FormControllerFunction = <
   S extends object,
   C,
-  const K extends DeepKeys<S> | undefined = undefined,
-  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
->(
-  props: P & {
-    store: StoreApi<FormState<S>>;
-    name?: K;
-    contextSelector?: (state: S) => C;
-    render: (props: FormRenderProps<V, C, S>) => JSX.Element;
-    options?: {
-      useStore?: <S, R>(
-        storeApi: StoreApi<FormState<S>>,
-        callback: (selector: FormState<S>) => R
-      ) => R;
-    };
-  }
-) => JSX.Element;
+  const K extends DeepKeys<S> | undefined = undefined
+>(props: {
+  store: StoreApi<FormState<S>>;
+  name?: K;
+  contextSelector?: (state: S) => C;
+  render: (props: FormRenderProps<S, C, K>) => JSX.Element;
+  options?: {
+    useStore?: <S, R>(
+      storeApi: StoreApi<FormState<S>>,
+      callback: (selector: FormState<S>) => R
+    ) => R;
+  };
+}) => JSX.Element;
