@@ -12,6 +12,7 @@ import {
   getScopedFormApi,
   setWithOptionalPath,
 } from './utils';
+import { produce } from 'immer';
 
 /**
  * React context provider component that makes a form store available to child components.
@@ -104,17 +105,22 @@ export function FormController<
     value: value,
     onBlur: useCallback(() => {
       scopedStore.setState((state) => {
-        return setWithOptionalPath(state, 'touched._touched', true);
+        return produce(state, (draft) => {
+          // Mark the field as touched
+          return setWithOptionalPath(draft, 'touched._touched', true);
+        });
       });
     }, [scopedStore]),
     onFormChange: useCallback(
       (form) => {
         store.setState((state) => {
-          const newForm =
-            typeof form === 'function'
-              ? (form as AnyFunction)(state.values)
-              : form;
-          return setWithOptionalPath(state, 'values', newForm);
+          return produce(state, (draft) => {
+            const newForm =
+              typeof form === 'function'
+                ? (form as AnyFunction)(draft.values)
+                : form;
+            return setWithOptionalPath(draft, 'values', newForm);
+          });
         });
       },
       [store]
@@ -122,12 +128,14 @@ export function FormController<
     onChange: useCallback(
       (value) => {
         scopedStore.setState((state) => {
-          const newValue =
-            typeof value === 'function'
-              ? (value as AnyFunction)(state.values)
-              : value;
+          return produce(state, (draft) => {
+            const newValue =
+              typeof value === 'function'
+                ? (value as AnyFunction)(draft.values)
+                : value;
 
-          return setWithOptionalPath(state, 'values', newValue);
+            return setWithOptionalPath(draft, 'values', newValue);
+          });
         });
       },
       [scopedStore]

@@ -1688,3 +1688,50 @@ describe('should allow custom FormController', () => {
     expect(formStore.getState().values.user.name).toBe('Jane');
   });
 });
+
+describe('FormController should allow you to mutate arrays', () => {
+  it('should allow you to mutate arrays', () => {
+    const defaultValues = [
+      {
+        name: 'Item 1',
+      },
+    ];
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.array(
+          z.object({
+            name: z.string(),
+          })
+        ),
+    });
+
+    const MockForm = () => (
+      <FormController
+        store={formStore}
+        render={({ value, onChange }) => (
+          <div>
+            {/* a button to add a new item */}
+            <button
+              data-testid="add-item-button"
+              onClick={() =>
+                onChange([...value, { name: `Item ${value.length + 1}` }])
+              }
+            >
+              Add Item
+            </button>
+          </div>
+        )}
+      />
+    );
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const addButton = screen.getByTestId('add-item-button');
+    fireEvent.click(addButton);
+    expect(formStore.getState().values.length).toBe(2);
+  });
+});
