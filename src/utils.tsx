@@ -1,6 +1,6 @@
 import { produce } from 'immer';
 import { get, isEqual, set, setWith, toPath, transform } from 'lodash-es';
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { object, ZodType } from 'zod';
 import {
   createStore,
@@ -164,25 +164,6 @@ export const createFormStore = <T extends object>(
     })
   );
 };
-
-export const FormStoreContext = createContext<StoreApi<FormState<any>> | null>(
-  null
-);
-
-/**
- * React hook to access the form store from context.
- * Must be used within a FormStoreProvider component.
- *
- * @throws Error if used outside of FormStoreProvider
- * @returns The form store instance from context
- */
-export function useFormStore<S>() {
-  const store = useContext(FormStoreContext) as StoreApi<FormState<S>> | null;
-  if (!store) {
-    throw new Error('useFormStore must be used within FormStoreProvider');
-  }
-  return store;
-}
 
 export function getScopedApi<
   S extends object,
@@ -432,4 +413,70 @@ function markPathAsTouched(target: any, path: string): void {
  */
 function markPathAsDirty(target: any, path: string): void {
   markPathWithProperty(target, path, '_dirty');
+}
+
+/**
+ * Creates a React context provider for a form store.
+ * This allows child components to access the form store using the useFormStore hook.
+ *
+ * @returns A tuple containing the FormStoreProvider component and the useFormStore hook
+ */
+export function createFormStoreProvider<S>() {
+  const FormStoreContext = createContext<StoreApi<FormState<any>> | null>(null);
+  /**
+   * React context provider component that makes a form store available to child components.
+   * Allows child components to access the form store using useFormStore hook.
+   *
+   * @param children - React children components
+   * @param store - The form store to provide to child components
+   * @param options - Optional configuration object
+   * @param options.name - Path to a specific part of the form to scope the provider to
+   */
+  function FormStoreProvider<
+    T = S,
+    const K extends DeepKeys<T> | undefined = undefined
+  >({
+    children,
+    store,
+    options,
+  }: {
+    children?: React.ReactNode;
+    store: StoreApi<FormState<T>>;
+    options?: {
+      /**
+       * Provide the name (path) to the variable in the form
+       */
+      name?: K;
+    };
+  }) {
+    const { name } = options || {};
+    const scopedStore = useMemo(
+      () => (name ? getScopedFormApi(store, name) : store),
+      [store, name]
+    );
+
+    return (
+      <FormStoreContext.Provider value={scopedStore}>
+        {children}
+      </FormStoreContext.Provider>
+    );
+  }
+
+  /**
+   * React hook to access the form store from context.
+   * Must be used within a FormStoreProvider component.
+   *
+   * @returns The form store instance from context
+   */
+  function useFormStore<State = S>() {
+    const store = useContext(FormStoreContext) as StoreApi<
+      FormState<State>
+    > | null;
+    if (!store) {
+      throw new Error('useFormStore must be used within FormStoreProvider');
+    }
+    return store;
+  }
+
+  return [FormStoreProvider, useFormStore] as const;
 }

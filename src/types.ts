@@ -114,6 +114,78 @@ export type Nested<T, O> = O &
       : O;
   }>;
 
+// mark this as deprecated
+/**
+ * Render props type for the FormController render prop.
+ * Provides form state and handlers for building form UIs.
+ * Automatically handles value changes, validation, touched/dirty states, and provides
+ * optimized change handlers for form interactions.
+ *
+ * @deprecated Use FormControllerRenderProps instead.
+ */
+export type FormRenderProps<Value, FormState = any, Context = any> = {
+  /**
+   * onFormChange is a function that can be used to update the form state.
+   * It can be a value or a function that returns a value.
+   */
+  onFormChange: (form: FormState | ((form: FormState) => FormState)) => void;
+  /**
+   * The context object for the field. Evaluated from the contextSelector.
+   */
+  context: Context;
+  /**
+   * The value of the field.
+   */
+  value: Value;
+  /**
+   * The function to call when the value changes.
+   * It can be a value or a function that returns a value.
+   */
+  onChange: (value: Value | ((value: Value) => Value)) => void;
+  /**
+   * The function to call when the input is blurred.
+   * It can be used to trigger validation or other side effects.
+   */
+  onBlur?: () => void;
+  /**
+   * The error object for the field.
+   */
+  error?: Nested<
+    Value,
+    {
+      _errors?: string[];
+    }
+  >;
+  /**
+   * The touched state of the field.
+   */
+  touched?: Nested<
+    Value,
+    {
+      _touched?: boolean;
+    }
+  >;
+  /**
+   * If the field is dirty.
+   */
+  dirty?: Nested<
+    Value,
+    {
+      _dirty?: boolean;
+    }
+  >;
+};
+
+/**
+ * Render props type for the FormController render prop.
+ * Provides form state and handlers for building form UIs.
+ * Automatically handles value changes, validation, touched/dirty states, and provides
+ * optimized change handlers for form interactions.
+ *
+ * @param Value - The type of the field value.
+ * @param FormState - The type of the form state.
+ * @param Context - The type of the context object.
+ */
 export type FormControllerRenderProps<Value, FormState = any, Context = any> = {
   /**
    * onFormChange is a function that can be used to update the form state.
@@ -189,3 +261,5 @@ export type FormControllerProps<
     ) => R;
   };
 };
+
+export type ExtractForm<T> = T extends FormState<infer S> ? S : never;

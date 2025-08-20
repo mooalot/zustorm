@@ -1,11 +1,13 @@
+import { createFormStoreProvider } from './utils';
+
 export {
   createFormStore,
   getDefaultForm,
   withForm,
   getFormApi,
-  useFormStore,
+  createFormStoreProvider,
 } from './utils';
-export { FormStoreProvider, FormController } from './components';
+export { FormController } from './components';
 export type {
   FormState,
   FormControllerRenderProps,
@@ -13,3 +15,6 @@ export type {
   DeepKeys,
   DeepValue,
 } from './types';
+const [FormStoreProvider, useFormStore] = createFormStoreProvider();
+
+export { FormStoreProvider, useFormStore };

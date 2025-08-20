@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { z, ZodType } from 'zod';
 import { create, createStore, useStore } from 'zustand';
-import { FormController, FormStoreProvider } from '../src/components';
+import { FormController, FormStoreProvider, useFormStore } from '../src/index';
 import {
   DeepKeys,
   DeepValue,
@@ -11,13 +11,13 @@ import {
   FormState,
 } from '../src/types';
 import {
+  createFormStoreProvider,
   getDefaultForm,
   getFormApi,
   getScopedApi,
   getScopedFormApi,
   getScopedFormState,
   setWithOptionalPath,
-  useFormStore,
   withForm,
 } from '../src/utils';
 
@@ -1746,5 +1746,52 @@ describe('FormController should allow you to mutate arrays', () => {
     const addButton = screen.getByTestId('add-item-button');
     fireEvent.click(addButton);
     expect(formStore.getState().values.length).toBe(2);
+  });
+});
+
+describe('createFormStoreProvider', () => {
+  it('should allow you to create a form store provider and hook', () => {
+    const defaultValues = { user: { name: 'John', age: 30 } };
+    const formStore = createFormStore(defaultValues, {
+      getSchema: () =>
+        z.object({
+          user: z.object({
+            name: z.string(),
+            age: z.number(),
+          }),
+        }),
+    });
+
+    const [FormStoreProvider, useFormStore] =
+      createFormStoreProvider<typeof defaultValues>();
+    const MockForm = () => {
+      const store = useFormStore();
+      return (
+        <FormController
+          store={store}
+          name="user.name"
+          render={({ value, onChange }) => (
+            <input
+              data-testid="form-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          )}
+        />
+      );
+    };
+
+    render(
+      <FormStoreProvider store={formStore}>
+        <MockForm />
+      </FormStoreProvider>
+    );
+
+    const input = screen.getByTestId('form-input') as HTMLInputElement;
+    expect(input.value).toBe('John');
+
+    fireEvent.change(input, { target: { value: 'Jane' } });
+    expect(input.value).toBe('Jane');
+    expect(formStore.getState().values.user.name).toBe('Jane');
   });
 });

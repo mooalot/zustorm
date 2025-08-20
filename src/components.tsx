@@ -7,51 +7,8 @@ import {
   FormControllerRenderProps,
   FormState,
 } from './types';
-import {
-  FormStoreContext,
-  getScopedFormApi,
-  setWithOptionalPath,
-} from './utils';
+import { getScopedFormApi, setWithOptionalPath } from './utils';
 import { produce } from 'immer';
-
-/**
- * React context provider component that makes a form store available to child components.
- * Allows child components to access the form store using useFormStore hook.
- *
- * @param children - React children components
- * @param store - The form store to provide to child components
- * @param options - Optional configuration object
- * @param options.name - Path to a specific part of the form to scope the provider to
- */
-export function FormStoreProvider<
-  T extends object,
-  const K extends DeepKeys<T> | undefined = undefined
->({
-  children,
-  store,
-  options,
-}: {
-  children?: React.ReactNode;
-  store: StoreApi<FormState<T>>;
-  options?: {
-    /**
-     * Provide the name (path) to the variable in the form
-     */
-    name?: K;
-  };
-}) {
-  const { name } = options || {};
-  const scopedStore = useMemo(
-    () => (name ? getScopedFormApi(store, name) : store),
-    [store, name]
-  );
-
-  return (
-    <FormStoreContext.Provider value={scopedStore}>
-      {children}
-    </FormStoreContext.Provider>
-  );
-}
 
 /**
  * A render prop component that provides form state and handlers for building form UIs.
