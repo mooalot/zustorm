@@ -201,14 +201,15 @@ Here is how it is done with the FormController:
 
 ## API
 
-| Function                      | Description                                   |
-| ----------------------------- | --------------------------------------------- |
-| `withForm(creator, options)`  | Enhances Zustand store with form capabilities |
-| `FormController`              | Renders form fields with state binding        |
-| `FormStoreProvider`           | Provides form store context                   |
-| `useFormStore()`              | Access form store from context                |
-| `getDefaultForm(values)`      | Returns default form state                    |
-| `getFormApi(store, formPath)` | Access deep form API methods                  |
+| Function                      | Description                                    |
+| ----------------------------- | ---------------------------------------------- |
+| `withForm(creator, options)`  | Enhances Zustand store with form capabilities  |
+| `FormController`              | Renders form fields with state binding         |
+| `FormStoreProvider`           | Provides form store context                    |
+| `useFormStore()`              | Access form store from context                 |
+| `getDefaultForm(values)`      | Returns default form state                     |
+| `getFormApi(store, formPath)` | Access deep form API methods                   |
+| `createFormStoreProvider()`   | Creates a FormStoreProvider component and hook |
 
 ## Examples
 
