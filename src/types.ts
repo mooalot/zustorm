@@ -114,11 +114,7 @@ export type Nested<T, O> = O &
       : O;
   }>;
 
-export type FormControllerRenderProps<
-  Value,
-  FormState = unknown,
-  Context = unknown
-> = {
+export type FormControllerRenderProps<Value, FormState = any, Context = any> = {
   /**
    * onFormChange is a function that can be used to update the form state.
    * It can be a value or a function that returns a value.
