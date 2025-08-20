@@ -114,26 +114,29 @@ export type Nested<T, O> = O &
       : O;
   }>;
 
-export type FormRenderProps<
-  S,
-  C,
-  K extends DeepKeys<S> | undefined = undefined,
-  V = K extends DeepKeys<S> ? DeepValue<S, K> : S
+export type FormControllerRenderProps<
+  Value,
+  FormState = unknown,
+  Context = unknown
 > = {
-  /**
-   * The value of the field. This is the value that is stored in the form state.
-   */
-  value: V;
-  /**
-   * The function to call when the value changes.
-   * It can be a value or a function that returns a value.
-   */
-  onChange: (value: V | ((value: V) => V)) => void;
   /**
    * onFormChange is a function that can be used to update the form state.
    * It can be a value or a function that returns a value.
    */
-  onFormChange: (form: S | ((form: S) => S)) => void;
+  onFormChange: (form: FormState | ((form: FormState) => FormState)) => void;
+  /**
+   * The context object for the field. Evaluated from the contextSelector.
+   */
+  context: Context;
+  /**
+   * The value of the field.
+   */
+  value: Value;
+  /**
+   * The function to call when the value changes.
+   * It can be a value or a function that returns a value.
+   */
+  onChange: (value: Value | ((value: Value) => Value)) => void;
   /**
    * The function to call when the input is blurred.
    * It can be used to trigger validation or other side effects.
@@ -143,7 +146,7 @@ export type FormRenderProps<
    * The error object for the field.
    */
   error?: Nested<
-    V,
+    Value,
     {
       _errors?: string[];
     }
@@ -152,7 +155,7 @@ export type FormRenderProps<
    * The touched state of the field.
    */
   touched?: Nested<
-    V,
+    Value,
     {
       _touched?: boolean;
     }
@@ -161,21 +164,11 @@ export type FormRenderProps<
    * If the field is dirty.
    */
   dirty?: Nested<
-    V,
+    Value,
     {
       _dirty?: boolean;
     }
   >;
-
-  /**
-   * The context object for the field. Evaluated from the contextSelector.
-   */
-  context: C;
-  /**
-   * The name of the field. This is used to identify the field in the form state.
-   * If K is provided, it will be a tuple of keys.
-   */
-  name?: K;
 };
 
 export type FormControllerProps<
@@ -186,7 +179,13 @@ export type FormControllerProps<
   store: StoreApi<FormState<S>>;
   name?: K;
   contextSelector?: (state: S) => C;
-  render: (props: FormRenderProps<S, C, K>) => JSX.Element;
+  render: (
+    props: FormControllerRenderProps<
+      K extends DeepKeys<S> ? DeepValue<S, K> : S,
+      S,
+      C
+    >
+  ) => JSX.Element;
   options?: {
     useStore?: <S, R>(
       storeApi: StoreApi<FormState<S>>,

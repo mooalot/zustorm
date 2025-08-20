@@ -4,7 +4,7 @@ import {
   AnyFunction,
   DeepKeys,
   FormControllerProps,
-  FormRenderProps,
+  FormControllerRenderProps,
   FormState,
 } from './types';
 import {
@@ -79,12 +79,9 @@ export function FormController<
     () =>
       (name ? getScopedFormApi(store, name) : store) as StoreApi<
         FormState<
-          Parameters<(typeof props)['render']>[0] extends FormRenderProps<
-            any,
-            any,
-            any,
-            infer V
-          >
+          Parameters<
+            (typeof props)['render']
+          >[0] extends FormControllerRenderProps<infer V>
             ? V
             : never
         >
@@ -144,6 +141,5 @@ export function FormController<
     touched,
     dirty,
     context,
-    name,
   });
 }

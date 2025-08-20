@@ -5,8 +5,9 @@ import { create, createStore, useStore } from 'zustand';
 import { FormController, FormStoreProvider } from '../src/components';
 import {
   DeepKeys,
+  DeepValue,
   FormControllerProps,
-  FormRenderProps,
+  FormControllerRenderProps,
   FormState,
 } from '../src/types';
 import {
@@ -1607,7 +1608,11 @@ describe('should allow custom FormController', () => {
       props: Omit<FormControllerProps<S, C, K>, 'render'> & {
         title: string;
         render: (
-          props: FormRenderProps<S, C, K> & { id: string }
+          props: FormControllerRenderProps<
+            K extends DeepKeys<S> ? DeepValue<S, K> : S,
+            S,
+            C
+          > & { id: string }
         ) => JSX.Element;
       }
     ) => {
@@ -1645,6 +1650,20 @@ describe('should allow custom FormController', () => {
       );
     };
 
+    const CustomInput = <S,>({
+      value,
+      onChange,
+      id,
+    }: FormControllerRenderProps<string, S> & { id: string }) => {
+      return (
+        <input
+          data-testid={`custom-input-${id}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    };
+
     const defaultValues = { user: { name: 'John', age: 30 } };
     const formStore = createFormStore(defaultValues, {
       getSchema: () =>
@@ -1661,13 +1680,7 @@ describe('should allow custom FormController', () => {
         store={formStore}
         name="user.name"
         title="User Name"
-        render={({ value, onChange, id }) => (
-          <input
-            data-testid={`custom-input-${id}`}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        )}
+        render={CustomInput}
       />
     );
 
