@@ -186,15 +186,18 @@ export function getScopedApi<
     return get(state, path) as V;
   };
 
-  const setState: SetState = (partial, replace) => {
-    const state = store.getState();
-    const newState = (
-      typeof partial === 'function'
-        ? (partial as AnyFunction)(get(state, path) as V)
-        : partial
-    ) as V;
-    const updatedState = set(state, path, newState);
-    store.setState(updatedState, replace as true);
+  const setState: SetState = (partial) => {
+    store.setState((state) =>
+      produce(state, (draft) => {
+        const state = get(draft, path) as V;
+        const newState = (
+          typeof partial === 'function'
+            ? (partial as AnyFunction)(state)
+            : partial
+        ) as V;
+        set(draft, path, { ...state, ...newState });
+      })
+    );
   };
 
   const subscribe: Subscribe = (listener) => {
@@ -253,22 +256,31 @@ export function getScopedFormApi<
     return getScopedFormState(state, path);
   };
 
-  const setState: SetState = (partial, replace) => {
-    const state = store.getState();
-    const newState =
-      typeof partial === 'function'
-        ? (partial as AnyFunction)(
-            getScopedFormState(state, path) as FormState<S>
-          )
-        : (partial as FormState<V>);
+  const setState: SetState = (partial) => {
+    store.setState((state) =>
+      produce(state, (draft) => {
+        const state = draft as FormState<S>;
+        const partialState =
+          typeof partial === 'function'
+            ? (partial as AnyFunction)(
+                getScopedFormState(state, path) as FormState<S>
+              )
+            : (partial as FormState<V>);
+        const newState = {
+          ...getScopedFormState(state, path),
+          ...partialState,
+        } as FormState<V>;
 
-    const updatedState = produce(state, (draft) => {
-      setWithOptionalPath(draft, mergePaths('values', path), newState.values);
-      setWithOptionalPath(draft, mergePaths('errors', path), newState.errors);
-      setWithOptionalPath(draft, mergePaths('dirty', path), newState.dirty);
-      setWithOptionalPath(draft, mergePaths('touched', path), newState.touched);
-    });
-    store.setState(updatedState, replace as true);
+        setWithOptionalPath(draft, mergePaths('values', path), newState.values);
+        setWithOptionalPath(draft, mergePaths('errors', path), newState.errors);
+        setWithOptionalPath(draft, mergePaths('dirty', path), newState.dirty);
+        setWithOptionalPath(
+          draft,
+          mergePaths('touched', path),
+          newState.touched
+        );
+      })
+    );
   };
 
   const subscribe: Subscribe = (listener) => {

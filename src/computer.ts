@@ -35,8 +35,8 @@ function createComputerImplementation<T extends object>(
 
       let proxyState: T;
 
-      function runCompute(state: Partial<T>): Partial<T> {
-        proxyState = { ...get(), ...state };
+      function runCompute(state: T): Partial<T> {
+        proxyState = { ...state };
         affected = new WeakMap();
         for (const key in proxyState) {
           const value = proxyState[key];

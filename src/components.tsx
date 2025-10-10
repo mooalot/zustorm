@@ -1,3 +1,4 @@
+import { produce } from 'immer';
 import { useCallback, useMemo } from 'react';
 import { StoreApi, useStore as useStoreZustand } from 'zustand';
 import {
@@ -8,7 +9,6 @@ import {
   FormState,
 } from './types';
 import { getScopedFormApi, setWithOptionalPath } from './utils';
-import { produce } from 'immer';
 
 /**
  * A render prop component that provides form state and handlers for building form UIs.

@@ -1795,3 +1795,61 @@ describe('createFormStoreProvider', () => {
     expect(formStore.getState().values.user.name).toBe('Jane');
   });
 });
+
+describe('getformapi', () => {
+  it('should get a scoped form api that works in a storeprovider', () => {
+    const useStore = create<{
+      form: FormState<{ user: { name: string; age: number } }>;
+    }>()(
+      withForm(
+        () => ({
+          form: getDefaultForm({ user: { name: 'bob', age: 0 } }),
+        }),
+        {
+          formPath: 'form',
+          getSchema: () =>
+            z.object({
+              user: z.object({
+                name: z.string(),
+                age: z.number(),
+              }),
+            }),
+        }
+      )
+    );
+
+    const InnerForm = () => {
+      const store = useFormStore<{ user: { name: string } }>();
+      return (
+        <FormController
+          store={store}
+          name="user.name"
+          render={({ value, onChange }) => (
+            <input
+              data-testid="form-input"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          )}
+        />
+      );
+    };
+    const MockForm = () => {
+      const formApi = getFormApi(useStore, 'form');
+      return (
+        <FormStoreProvider store={formApi}>
+          <InnerForm />
+        </FormStoreProvider>
+      );
+    };
+
+    render(<MockForm />);
+
+    const input = screen.getByTestId('form-input') as HTMLInputElement;
+    expect(input.value).toBe('bob');
+
+    fireEvent.change(input, { target: { value: 'Jane' } });
+    expect(input.value).toBe('Jane');
+    expect(useStore.getState().form.values.user.name).toBe('Jane');
+  });
+});
