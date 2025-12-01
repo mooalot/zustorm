@@ -121,14 +121,14 @@ export type FormState<T> = {
 /**
  * A utility type that recursively maps over the keys of an object T,
  */
-export type Nested<T, O> = O &
-  Partial<{
-    [K in keyof T]: T[K] extends Array<infer U>
-      ? { [key: string]: Nested<U, O> }
-      : T[K] extends object
-      ? Nested<T[K], O>
-      : O;
-  }>;
+export type Nested<T, O> = Partial<{
+  [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
+    ? { [key: string]: Nested<U, O> }
+    : NonNullable<T[K]> extends object
+    ? Nested<NonNullable<T[K]>, O>
+    : O;
+}> &
+  O;
 
 /**
  * Render props type for the FormController render prop.
