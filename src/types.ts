@@ -67,6 +67,34 @@ type DeepValueFromStringPath<
     : never
   : never;
 
+/** Errors type that mirrors the structure of T,
+ */
+export type Errors<T> = Nested<
+  T,
+  {
+    _errors?: string[];
+  }
+>;
+
+/** Touched state type that mirrors the structure of T,
+ */
+export type Touched<T> = Nested<
+  T,
+  {
+    _touched?: boolean;
+  }
+>;
+
+/**
+ * Dirty state type that mirrors the structure of T,
+ */
+export type Dirty<T> = Nested<
+  T,
+  {
+    _dirty?: boolean;
+  }
+>;
+
 /**
  * The core form state type that represents the complete state of a form.
  * Includes form values, validation errors, touched/dirty states, and submission status.
@@ -79,32 +107,20 @@ export type FormState<T> = {
   /**
    * The errors of the form fields. Currently only supports Zod errors.
    */
-  errors?: Nested<
-    T,
-    {
-      _errors?: string[];
-    }
-  >;
+  errors?: Errors<T>;
   /**
    * The touched state of the form fields.
    */
-  touched?: Nested<
-    T,
-    {
-      _touched?: boolean;
-    }
-  >;
+  touched?: Touched<T>;
   /**
    * If the form is dirty. This is a boolean value that indicates if the form is dirty or not.
    */
-  dirty?: Nested<
-    T,
-    {
-      _dirty?: boolean;
-    }
-  >;
+  dirty?: Dirty<T>;
 };
 
+/**
+ * A utility type that recursively maps over the keys of an object T,
+ */
 export type Nested<T, O> = O &
   Partial<{
     [K in keyof T]: T[K] extends Array<infer U>

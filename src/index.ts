@@ -14,6 +14,10 @@ export type {
   FormControllerProps,
   DeepKeys,
   DeepValue,
+  Errors,
+  Touched,
+  Dirty,
+  Nested,
 } from './types';
 const [FormStoreProvider, useFormStore] = createFormStoreProvider();
 
