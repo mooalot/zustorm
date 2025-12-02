@@ -409,6 +409,10 @@ function markPathWithProperty(
   // Mark all parent paths (including the target path itself)
   for (let i = 1; i <= pathSegments.length; i++) {
     const currentPath = pathSegments.slice(0, i).join('.');
+    console.log(
+      `Marking path: ${currentPath} with property: ${property}`,
+      JSON.stringify(target)
+    );
     setWith(target, `${currentPath}.${property}`, true, Object);
   }
 }
