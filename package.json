@@ -1,6 +1,6 @@
 {
   "name": "zustorm",
-  "version": "1.0.19",
+  "version": "1.0.18",
   "description": "Powerful form management with Zustand and Zod validation",
   "author": "Gabriel Saunders",
   "repository": {
