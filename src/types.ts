@@ -123,12 +123,14 @@ export type FormState<T> = {
  * adding the properties of object O at each level.
  * Note the outer intersection with O to ensure O's properties are included at the top level as well.
  */
-export type Nested<T, O> = (T extends (infer U)[]
-  ? Nested<U, O>[]
-  : T extends object
-  ? { [K in keyof T]?: Nested<NonNullable<T[K]>, O> }
-  : O) &
-  O;
+export type Nested<T, O> = T extends null | undefined
+  ? Nested<NonNullable<T>, O>
+  : (T extends (infer U)[]
+      ? Nested<U, O>[]
+      : T extends object
+      ? { [K in keyof T]?: Nested<T[K], O> }
+      : O) &
+      O;
 
 /**
  * Render props type for the FormController render prop.
