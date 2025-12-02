@@ -975,8 +975,8 @@ describe('form state integration', () => {
     formStore.setState((state) => ({
       ...state,
       values: { items: [{ name: 'Valid Name' }] },
-      touched: { items: { 0: { name: { _touched: true } } } },
-      dirty: { items: { 0: { name: { _dirty: true } } } },
+      touched: { items: [{ name: { _touched: true } }] },
+      dirty: { items: [{ name: { _dirty: true } }] },
     }));
 
     const updatedState = formStore.getState();

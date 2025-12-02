@@ -120,14 +120,14 @@ export type FormState<T> = {
 
 /**
  * A utility type that recursively maps over the keys of an object T,
+ * adding the properties of object O at each level.
+ * Note the outer intersection with O to ensure O's properties are included at the top level as well.
  */
-export type Nested<T, O> = Partial<{
-  [K in keyof T]: NonNullable<T[K]> extends Array<infer U>
-    ? { [key: string]: Nested<U, O> }
-    : NonNullable<T[K]> extends object
-    ? Nested<NonNullable<T[K]>, O>
-    : O;
-}> &
+export type Nested<T, O> = (T extends (infer U)[]
+  ? Nested<U, O>[]
+  : T extends object
+  ? { [K in keyof T]?: Nested<NonNullable<T[K]>, O> }
+  : O) &
   O;
 
 /**
