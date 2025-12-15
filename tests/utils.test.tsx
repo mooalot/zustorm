@@ -1853,3 +1853,69 @@ describe('getformapi', () => {
     expect(useStore.getState().form.values.user.name).toBe('Jane');
   });
 });
+
+describe('should allow formPath in creation of form store', () => {
+  it('should allow formPath in creation of form store and track dirty state', () => {
+    type LoginState = {
+      isSignUp: boolean;
+      isLoading: boolean;
+      error: string;
+      form: FormState<{
+        email: string;
+        password: string;
+      }>;
+    };
+
+    const createFormStore = () => {
+      return createStore<LoginState>()(
+        withForm(
+          () => ({
+            isSignUp: false,
+            isLoading: false,
+            error: '',
+            form: getDefaultForm({
+              email: '',
+              password: '',
+            }),
+          }),
+          {
+            formPath: 'form',
+            getSchema: () =>
+              z.object({
+                email: z.string().email('Invalid email address'),
+                password: z
+                  .string()
+                  .min(6, 'Password must be at least 6 characters'),
+              }),
+          }
+        )
+      );
+    };
+
+    const formStore = createFormStore();
+
+    const MockForm = () => (
+      <FormController
+        store={getFormApi(formStore, 'form')}
+        name="email"
+        render={({ value, onChange }) => (
+          <input
+            data-testid="email-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )}
+      />
+    );
+
+    render(<MockForm />);
+
+    const input = screen.getByTestId('email-input') as HTMLInputElement;
+    expect(input.value).toBe('');
+
+    fireEvent.change(input, { target: { value: `test` } });
+    expect(input.value).toBe('test');
+    expect(formStore.getState().form.values.email).toBe('test');
+    expect(formStore.getState().form.dirty?.email?._dirty).toBe(true);
+  });
+});

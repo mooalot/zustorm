@@ -22,45 +22,32 @@ import { AnyFunction, DeepKeys, DeepValue, FormState } from './types';
  * @returns An enhanced store creator with form management
  */
 export const withForm = <
-  S extends object,
-  const K extends DeepKeys<S> | undefined = undefined,
+  T extends object,
+  const K extends DeepKeys<T> | undefined = undefined,
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = []
+  Mcs extends [StoreMutatorIdentifier, unknown][] = [],
+  S extends object = T
 >(
-  creator: StateCreator<S, [...Mps], Mcs>,
-  options: S extends FormState<any>
+  creator: StateCreator<T, [...Mps], Mcs>,
+  options: T extends FormState<any>
     ? {
-        /**
-         * The path to the form in the store (optional when S is directly a FormState)
-         */
         formPath?: K;
-        /**
-         * The function to get the schema for the form. This is useful for custom validation logic.
-         * It can be a function that returns a Zod schema or a Zod schema itself.
-         */
         getSchema?: (
-          state: S
-        ) => ZodType<S extends FormState<infer U> ? U : never>;
+          state: T
+        ) => ZodType<T extends FormState<infer U> ? U : never>;
       }
-    : K extends undefined
-    ? never // Force an error when S is not FormState and no formPath is provided
-    : K extends DeepKeys<S>
+    : K extends DeepKeys<T>
     ? {
-        /**
-         * The path to the form in the store (required when S is not directly a FormState)
-         */
         formPath: K;
-        /**
-         * The function to get the schema for the form. This is useful for custom validation logic.
-         * It can be a function that returns a Zod schema or a Zod schema itself.
-         */
         getSchema?: (
-          state: S
-        ) => ZodType<DeepValue<S, K> extends FormState<infer U> ? U : never>;
+          state: T
+        ) => ZodType<DeepValue<T, K> extends FormState<infer U> ? U : never>;
       }
     : never
 ): StateCreator<S, Mps, [...Mcs]> => {
-  return createFormComputer<S>()(options as any)(creator);
+  return createFormComputer<S>()(options as any)(
+    creator as unknown as StateCreator<S, [...Mps], Mcs>
+  );
 };
 
 function createFormComputer<S extends object>() {
