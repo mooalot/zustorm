@@ -71,6 +71,7 @@ jobs:
     needs: [test, build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
+      id-token: write # Required for OIDC
       contents: write # Required to create releases
 
     steps:
@@ -111,8 +112,6 @@ jobs:
       - name: Publish to npm
         if: steps.version-check.outputs.should-publish == 'true'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.version-check.outputs.should-publish == 'true'
