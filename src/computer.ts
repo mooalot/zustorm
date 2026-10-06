@@ -13,7 +13,7 @@ type Computed = <T extends object>(
   compute: Compute<T>
 ) => <
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = []
+  Mcs extends [StoreMutatorIdentifier, unknown][] = [],
 >(
   creator: StateCreator<T, [...Mps], Mcs>
 ) => StateCreator<T, Mps, [...Mcs]>;
@@ -33,7 +33,7 @@ function createComputerImplementation<T extends object>(
       const targetCache = new WeakMap();
       const compareCache = new WeakMap();
 
-      let proxyState: T;
+      let proxyState = {} as T;
 
       function runCompute(state: T): Partial<T> {
         proxyState = { ...state };
@@ -70,6 +70,9 @@ function createComputerImplementation<T extends object>(
           const computed = runCompute(merged);
           const withComputed = { ...nextPartial, ...computed };
           set(withComputed, replace as false);
+          // Keep the comparison baseline equal to what was stored, so the next
+          // update is compared against the computed state, not the input.
+          Object.assign(proxyState, computed);
         } else {
           set(nextPartial, replace as false);
         }
@@ -81,6 +84,7 @@ function createComputerImplementation<T extends object>(
 
       const initialState = creator(setWithComputed, get, api);
       const initialComputed = runCompute(initialState);
+      Object.assign(proxyState, initialComputed);
       return { ...initialState, ...initialComputed };
     };
   };

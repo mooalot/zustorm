@@ -34,5 +34,10 @@ export default defineConfig({
     environment: 'jsdom', // Required for React testing
     globals: true, // Allows using `test`, `expect` globally
     setupFiles: 'tests/vitest.setup.ts', // Path to your setup file
+    coverage: {
+      include: ['src/**'],
+      exclude: ['src/types.ts'],
+      reporter: ['text'],
+    },
   },
 });

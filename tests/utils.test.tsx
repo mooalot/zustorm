@@ -2,24 +2,26 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { z, ZodType } from 'zod';
 import { create, createStore, useStore } from 'zustand';
-import { FormController, FormStoreProvider, useFormStore } from '../src/index';
 import {
+  createFormStoreProvider,
   DeepKeys,
   DeepValue,
+  FormController,
   FormControllerProps,
   FormControllerRenderProps,
   FormState,
-} from '../src/types';
-import {
-  createFormStoreProvider,
+  FormStoreProvider,
   getDefaultForm,
   getFormApi,
-  getScopedApi,
   getScopedFormApi,
-  getScopedFormState,
-  setWithOptionalPath,
+  resetDirty,
+  resetErrors,
+  resetForm,
+  resetTouched,
+  useFormStore,
   withForm,
-} from '../src/utils';
+} from '../src';
+import { getScopedApi, getScopedFormState } from '../src/scoped';
 
 export const createFormStore = <T extends object>(
   initialValue: T,
@@ -38,11 +40,238 @@ export const createFormStore = <T extends object>(
   );
 };
 
-describe('setWithOptionalPath', () => {
-  it('should set a value at the specified path', () => {
-    const state = { a: { b: { c: 1 } } };
-    setWithOptionalPath(state, 'a.b.c', 2);
-    expect(state.a.b.c).toBe(2);
+describe('form reset helpers', () => {
+  it('resets values and form metadata to the initial state', () => {
+    const initialValues = { name: 'Initial' };
+    const store = createFormStore(initialValues);
+    store.setState({
+      values: { name: 'Changed' },
+      touched: { name: { _touched: true } },
+      dirty: { name: { _dirty: true } },
+    });
+
+    resetForm(store);
+
+    expect(store.getState().values).toEqual(initialValues);
+    expect(store.getState().errors).toBeUndefined();
+    expect(store.getState().touched).toBeUndefined();
+    expect(store.getState().dirty).toBeUndefined();
+
+    // Supplied values become the new baseline...
+    store.getState().reset({ name: 'From store action' });
+    expect(store.getState().values.name).toBe('From store action');
+    expect(store.getState().initialValues).toEqual({
+      name: 'From store action',
+    });
+    store.setState({ values: { name: 'Edited' } });
+    store.getState().reset();
+    expect(store.getState().values).toEqual({ name: 'From store action' });
+
+    // ...unless asked to keep the existing one.
+    store.getState().reset({ name: 'Temporary' }, { keepInitialValues: true });
+    expect(store.getState().values.name).toBe('Temporary');
+    expect(store.getState().initialValues).toEqual({
+      name: 'From store action',
+    });
+    store.getState().reset();
+    expect(store.getState().values).toEqual({ name: 'From store action' });
+  });
+
+  it('accepts replacement values and resets metadata independently', () => {
+    const store = createFormStore({ name: 'Initial' });
+    store.setState({
+      values: { name: 'Changed' },
+      errors: { name: { _errors: ['Invalid'] } },
+      touched: { name: { _touched: true } },
+      dirty: { name: { _dirty: true } },
+    });
+
+    resetTouched(store);
+    resetDirty(store);
+    resetErrors(store);
+
+    expect(store.getState().touched).toBeUndefined();
+    expect(store.getState().dirty).toBeUndefined();
+    expect(store.getState().errors).toBeUndefined();
+
+    resetForm(store, { name: 'Replacement' });
+    expect(store.getState().values).toEqual({ name: 'Replacement' });
+  });
+
+  it('clears errors until values change and trigger validation again', () => {
+    const store = createFormStore(
+      { name: '' },
+      { getSchema: () => z.object({ name: z.string().min(1, 'Required') }) }
+    );
+    expect(store.getState().errors?.name?._errors).toContain('Required');
+
+    resetErrors(store);
+    expect(store.getState().errors).toBeUndefined();
+
+    store.setState({ values: { name: 'Valid' } });
+    expect(store.getState().errors).toBeUndefined();
+  });
+
+  it('exposes reset helpers from a scoped FormController', () => {
+    const store = createFormStore({ user: { name: 'Initial' } });
+    render(
+      <FormController
+        store={store}
+        name="user.name"
+        render={({ value, onChange, reset }) => (
+          <>
+            <input
+              data-testid="reset-controller-input"
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+            />
+            <button
+              data-testid="reset-controller-button"
+              onClick={() => reset()}
+            >
+              Reset
+            </button>
+          </>
+        )}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId('reset-controller-input'), {
+      target: { value: 'Changed' },
+    });
+    expect(store.getState().values.user.name).toBe('Changed');
+
+    fireEvent.click(screen.getByTestId('reset-controller-button'));
+    expect(store.getState().values.user.name).toBe('Initial');
+    expect(store.getState().touched?.user?.name?._touched).toBeUndefined();
+    expect(store.getState().dirty?.user?.name?._dirty).toBeUndefined();
+  });
+
+  it('does not mark reset fields as dirty, but tracks later changes again', () => {
+    const store = createFormStore({ name: 'Initial' });
+    store.setState({ values: { name: 'Changed' } });
+    expect(store.getState().dirty?.name?._dirty).toBe(true);
+
+    store.getState().reset();
+    expect(store.getState().dirty).toBeUndefined();
+    expect(store.getState().touched).toBeUndefined();
+    expect(Object.getOwnPropertySymbols(store.getState())).toEqual([]);
+
+    store.setState({ values: { name: 'Changed again' } });
+    expect(store.getState().dirty?.name?._dirty).toBe(true);
+    expect(store.getState().touched?.name?._touched).toBe(true);
+  });
+
+  it('tracks changes again after a reset from a scoped api', () => {
+    const store = createFormStore({ user: { name: 'Initial' } });
+    const scoped = getScopedFormApi(store, 'user.name');
+    scoped.setState({ values: 'Changed' });
+    expect(store.getState().dirty?.user?.name?._dirty).toBe(true);
+
+    scoped.getState().reset();
+    expect(store.getState().values.user.name).toBe('Initial');
+    expect(store.getState().dirty?.user?.name?._dirty).toBeUndefined();
+
+    scoped.setState({ values: 'Changed again' });
+    expect(store.getState().dirty?.user?.name?._dirty).toBe(true);
+  });
+
+  it('recomputes errors from the schema on reset', () => {
+    const store = createFormStore(
+      { name: '' },
+      { getSchema: () => z.object({ name: z.string().min(1, 'Required') }) }
+    );
+    store.setState({ values: { name: 'Valid' } });
+    expect(store.getState().errors).toBeUndefined();
+
+    store.getState().reset();
+    expect(store.getState().errors?.name?._errors).toContain('Required');
+    expect(store.getState().touched).toBeUndefined();
+  });
+
+  it('only attaches actions to the form, not the root of a larger store', () => {
+    let calls = 0;
+    const store = createStore<{
+      form: FormState<{ name: string }>;
+      counter: number;
+      reset: () => void;
+    }>()(
+      withForm(
+        () => ({
+          form: getDefaultForm({ name: 'Initial' }),
+          counter: 0,
+          reset: () => {
+            calls++;
+          },
+        }),
+        { formPath: 'form' }
+      )
+    );
+
+    store.getState().reset();
+    expect(calls).toBe(1);
+    expect(Object.keys(store.getState())).toEqual(['form', 'counter', 'reset']);
+
+    store.setState((state) => ({
+      form: { ...state.form, values: { name: 'x' } },
+    }));
+    store.getState().form.reset();
+    expect(store.getState().form.values.name).toBe('Initial');
+    expect(store.getState().counter).toBe(0);
+  });
+
+  it('revalidates when a schema depends on state outside the form', () => {
+    const store = createStore<{
+      form: FormState<{ name: string }>;
+      strict: boolean;
+    }>()(
+      withForm(
+        () => ({ form: getDefaultForm({ name: 'ab' }), strict: false }),
+        {
+          formPath: 'form',
+          getSchema: (state) =>
+            z.object({
+              name: z.string().min(state.strict ? 5 : 1, 'Too short'),
+            }),
+        }
+      )
+    );
+    expect(store.getState().form.errors).toBeUndefined();
+
+    store.setState({ strict: true });
+    expect(store.getState().form.errors?.name?._errors).toContain('Too short');
+
+    store.setState({ strict: false });
+    expect(store.getState().form.errors).toBeUndefined();
+  });
+
+  it('keeps dirty undefined after resetDirty and a blur without changes', () => {
+    const store = createFormStore({ name: 'Initial' });
+    render(
+      <FormController
+        store={store}
+        name="name"
+        render={({ value, onChange, onBlur }) => (
+          <input
+            data-testid="reset-dirty-input"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onBlur={onBlur}
+          />
+        )}
+      />
+    );
+    const input = screen.getByTestId('reset-dirty-input');
+
+    fireEvent.change(input, { target: { value: 'Changed' } });
+    expect(store.getState().dirty?.name?._dirty).toBe(true);
+
+    act(() => {
+      resetDirty(store);
+    });
+    fireEvent.blur(input);
+    expect(store.getState().touched?.name?._touched).toBe(true);
+    expect(store.getState().dirty).toBeUndefined();
   });
 });
 
@@ -1020,29 +1249,27 @@ describe('form state integration', () => {
     expect(formStore.getState().values.name).toBe('Updated Value');
 
     // Set touched and dirty
-    formStore.setState((state) => ({
-      ...state,
-      touched: { name: { _touched: true } },
-      dirty: { name: { _dirty: true } },
-    }));
+    act(() => {
+      formStore.setState((state) => ({
+        ...state,
+        touched: { name: { _touched: true } },
+        dirty: { name: { _dirty: true } },
+      }));
+    });
 
     expect(formStore.getState().touched?.name?._touched).toBe(true);
     expect(formStore.getState().dirty?.name?._dirty).toBe(true);
 
     // Reset form state
-    formStore.setState((state) => ({
-      ...state,
-      values: defaultValues,
-      errors: undefined,
-      touched: undefined,
-      dirty: undefined,
-    }));
+    act(() => {
+      formStore.getState().reset();
+    });
 
     // Check reset state
     expect(formStore.getState().values.name).toBe('Test');
     expect(formStore.getState().errors).toBeUndefined();
-    expect(formStore.getState().touched?.name?._touched).toBeUndefined();
-    expect(formStore.getState().dirty?.name?._dirty).toBeUndefined();
+    expect(formStore.getState().touched).toBeUndefined();
+    expect(formStore.getState().dirty).toBeUndefined();
   });
 
   it('should handle form state dynamic arrays', () => {
@@ -1603,7 +1830,7 @@ describe('should allow custom FormController', () => {
     const CustomFormController = <
       S,
       C,
-      const K extends DeepKeys<S> | undefined
+      const K extends DeepKeys<S> | undefined,
     >(
       props: Omit<FormControllerProps<S, C, K>, 'render'> & {
         title: string;
