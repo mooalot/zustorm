@@ -104,7 +104,8 @@ export function setErrorNode(
   const base = isNode(errors) ? errors : { _errors: [] };
   const [head, ...rest] = segments;
   if (rest.length === 0 && node === undefined) {
-    const { [head]: _removed, ...others } = base;
+    const others = { ...base };
+    delete others[head];
     return others;
   }
   return { ...base, [head]: setErrorNode(base[head], rest, node) };
