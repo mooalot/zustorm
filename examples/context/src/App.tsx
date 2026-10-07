@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import { z } from 'zod';
+import * as v from 'valibot';
 import { createStore, useStore } from 'zustand';
 import {
   FormController,
@@ -19,13 +19,14 @@ type UserForm = {
   };
 };
 
-const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
-  address: z.object({
-    street: z.string().min(1, 'Street is required'),
-    city: z.string().min(1, 'City is required'),
-    zip: z.string().min(1, 'ZIP is required'),
+// Any Standard Schema library works; this example validates with Valibot.
+const schema = v.object({
+  name: v.pipe(v.string(), v.minLength(1, 'Name is required')),
+  email: v.pipe(v.string(), v.email('Invalid email')),
+  address: v.object({
+    street: v.pipe(v.string(), v.minLength(1, 'Street is required')),
+    city: v.pipe(v.string(), v.minLength(1, 'City is required')),
+    zip: v.pipe(v.string(), v.minLength(1, 'ZIP is required')),
   }),
 });
 
@@ -74,7 +75,7 @@ function UserForm() {
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1>🔗 Context Example</h1>
-      <p>Using React Context with FormStoreProvider</p>
+      <p>Using React Context with FormStoreProvider, validated with Valibot</p>
 
       <form
         onSubmit={onSubmit}

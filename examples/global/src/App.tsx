@@ -82,26 +82,46 @@ function Field({
   );
 }
 
+// A stand-in for an API call: slow, and it rejects one particular email.
+async function saveUser(values: UserForm): Promise<{ emailTaken: boolean }> {
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  return { emailTaken: values.email === 'taken@example.com' };
+}
+
 function App() {
   const isValid = useUserForm((state) => state.isValid);
   const isDirty = useUserForm((state) => state.isDirty);
+  const isSubmitting = useUserForm((state) => state.isSubmitting);
   const handleSubmit = useUserForm((state) => state.handleSubmit);
   const reset = useUserForm((state) => state.reset);
+  const setError = useUserForm((state) => state.setError);
 
+  // isSubmitting is true until this callback settles. A server-side rejection
+  // is written back into the form with setError; it shows under the field and
+  // clears as soon as the field is edited again.
   const onSubmit = handleSubmit(
-    (values) => {
+    async (values) => {
+      const result = await saveUser(values);
+      if (result.emailTaken) {
+        setError('email', 'This email is already registered');
+        return;
+      }
       console.log('Form submitted:', values);
-      alert('Form submitted! Check console for data.');
       // Make the submitted values the new baseline.
       reset(values);
     },
     () => alert('Please fix validation errors before submitting.')
   );
+  const busy = isSubmitting || !isValid || !isDirty;
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1>🌐 Global State Example</h1>
       <p>Using a global Zustand store enhanced with withForm</p>
+      <p style={{ fontSize: '14px', color: '#666' }}>
+        Submitting takes 1.5 s. Try the email <code>taken@example.com</code> to
+        see a server error written back into the form.
+      </p>
 
       <form
         onSubmit={onSubmit}
@@ -134,21 +154,21 @@ function App() {
 
           <button
             type="submit"
-            disabled={!isValid || !isDirty}
+            disabled={busy}
             style={{
               padding: '12px 24px',
-              backgroundColor: !isValid || !isDirty ? '#ccc' : '#007bff',
+              backgroundColor: busy ? '#ccc' : '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: !isValid || !isDirty ? 'not-allowed' : 'pointer',
+              cursor: busy ? 'not-allowed' : 'pointer',
             }}
           >
-            Submit Form
+            {isSubmitting ? 'Saving…' : 'Submit Form'}
           </button>
           <button
             type="button"
-            disabled={!isDirty}
+            disabled={!isDirty || isSubmitting}
             onClick={() => reset()}
             style={{ marginLeft: '8px', padding: '12px 24px' }}
           >

@@ -555,9 +555,9 @@ Here is how it is done with the FormController:
 
 Complete examples with styling and advanced features:
 
-- [Global Store Example](https://github.com/mooalot/zustorm/tree/main/examples/global)
-- [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context)
-- [Array Handling Example](https://github.com/mooalot/zustorm/tree/main/examples/arrays)
+- [Global Store Example](https://github.com/mooalot/zustorm/tree/main/examples/global): a global store, an async submit with `isSubmitting`, and a server error written back with `setError`
+- [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context): a per-component store through `FormStoreProvider`, the hook, `contextSelector`, a scoped provider, and Valibot validation
+- [Array Handling Example](https://github.com/mooalot/zustorm/tree/main/examples/arrays): a dynamic list with add and remove
 
 ## Changelog
 
