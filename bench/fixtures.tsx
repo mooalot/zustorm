@@ -95,13 +95,19 @@ export function ZustormForm({
   store,
   n,
   header,
+  onSubmit,
 }: {
   store: StoreApi<FormState<Values>>;
   n: number;
   header?: boolean;
+  onSubmit?: (values: Values) => void;
 }) {
+  const handleSubmit = useStore(store, (state) => state.handleSubmit);
   return (
-    <form data-testid="z-form">
+    <form
+      data-testid="z-form"
+      onSubmit={onSubmit ? handleSubmit(onSubmit) : undefined}
+    >
       {header ? <ZustormHeader store={store} /> : null}
       {range(n).map((i) => (
         <ZustormField key={i} store={store} index={i} />

@@ -140,24 +140,25 @@ describe('submit a 100-field form (touch all + validate + callback)', () => {
   const n = 100;
   bench('zustorm', async () => submit('z-form'), {
     ...OPTIONS,
-    setup: () => {
-      const store = createZustormStore(n, true);
-      render(
-        <div
-          data-testid="z-form"
-          onSubmit={(event) =>
-            void store.getState().handleSubmit(() => {})(event)
-          }
-        >
-          <ZustormForm store={store} n={n} />
-        </div>
-      );
-    },
+    setup: () =>
+      void render(
+        <ZustormForm
+          store={createZustormStore(n, true)}
+          n={n}
+          onSubmit={() => {}}
+        />
+      ),
     teardown: cleanup,
   });
   bench('rhf (register)', async () => submit('r-form'), {
     ...OPTIONS,
     setup: () => void render(<RhfForm n={n} validate onSubmit={() => {}} />),
+    teardown: cleanup,
+  });
+  bench('rhf (Controller)', async () => submit('r-form'), {
+    ...OPTIONS,
+    setup: () =>
+      void render(<RhfForm n={n} validate controlled onSubmit={() => {}} />),
     teardown: cleanup,
   });
 });
