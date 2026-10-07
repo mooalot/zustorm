@@ -3,11 +3,13 @@
  * never execute: `expectTypeOf` assertions and `@ts-expect-error` lines are
  * checked by the compiler, so a regression in inference fails the build.
  */
+import * as v from 'valibot';
 import { describe, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import { create, createStore, StoreApi } from 'zustand';
 import {
   BaseFormState,
+  createSchema,
   DeepKeys,
   DeepValue,
   Dirty,
@@ -17,6 +19,7 @@ import {
   FormControllerRenderProps,
   FormInput,
   FormState,
+  FormSchema,
   FormStoreProvider,
   getDefaultForm,
   getErrorMessage,
@@ -24,7 +27,9 @@ import {
   getFormApi,
   getScopedFormApi,
   handleSubmit,
+  InferSchemaOutput,
   resetForm,
+  StandardSchema,
   SubmitHandler,
   Touched,
   useFormController,
@@ -601,5 +606,62 @@ describe('withForm call shapes', () => {
     useForm.getState().reset({ a: 2 });
     // @ts-expect-error reset takes the values type
     useForm.getState().reset({ a: 'x' });
+  });
+});
+
+describe('schemas', () => {
+  type User = { name: string; age: number };
+  const zodUser = z.object({ name: z.string(), age: z.number() });
+  const valibotUser = v.object({ name: v.string(), age: v.number() });
+
+  it('getSchema accepts any Standard Schema whose output fits the values', () => {
+    createStore(
+      withForm<User>({ name: '', age: 0 }, { getSchema: () => zodUser })
+    );
+    createStore(
+      withForm<User>({ name: '', age: 0 }, { getSchema: () => valibotUser })
+    );
+    createStore(
+      withForm<User>(
+        { name: '', age: 0 },
+        { getSchema: () => createSchema<User>(() => undefined) }
+      )
+    );
+    // A narrower output is fine: the schema may validate more than the form holds.
+    createStore(
+      withForm<{ name: string }>({ name: '' }, { getSchema: () => zodUser })
+    );
+    createStore(
+      // @ts-expect-error the schema's output does not match the values
+      withForm<User>(
+        { name: '', age: 0 },
+        { getSchema: () => z.object({ name: z.number() }) }
+      )
+    );
+    createStore(
+      // @ts-expect-error not a schema
+      withForm<User>(
+        { name: '', age: 0 },
+        { getSchema: () => ({ validate: () => true }) }
+      )
+    );
+  });
+
+  it('createSchema is typed by the values it validates', () => {
+    const schema = createSchema<User>((values) => {
+      expectTypeOf(values).toEqualTypeOf<User>();
+      return [
+        { path: 'name', message: 'x' },
+        { path: ['age'], message: 'y' },
+      ];
+    });
+    expectTypeOf(schema).toEqualTypeOf<StandardSchema<User, User>>();
+    expectTypeOf(schema).toMatchTypeOf<FormSchema<User>>();
+    expectTypeOf<InferSchemaOutput<typeof schema>>().toEqualTypeOf<User>();
+    expectTypeOf<InferSchemaOutput<typeof valibotUser>>().toEqualTypeOf<User>();
+    createSchema<User>(() => [
+      // @ts-expect-error a path must be a string or an array of keys
+      { path: { key: 'name' }, message: 'x' },
+    ]);
   });
 });

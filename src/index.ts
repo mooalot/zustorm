@@ -13,6 +13,16 @@ export {
 } from './form';
 export { getFormApi, getScopedFormApi } from './scoped';
 export { formatIssues, getErrorMessage, getErrorMessages } from './errors';
+export {
+  createSchema,
+  type FormSchema,
+  type InferSchemaOutput,
+  type SchemaIssue,
+  type SchemaPathSegment,
+  type SchemaResult,
+  type StandardSchema,
+  type ValidationIssue,
+} from './schema';
 export { FormController } from './components';
 export { useFormController } from './useFormController';
 export { createFormStoreProvider } from './provider';

@@ -2,23 +2,25 @@
  * Error trees: the nested `{ _errors: string[] }` shape that mirrors the
  * values, how it is built from schema issues, and how it is read.
  */
-import { ZodType } from 'zod';
+import { SchemaIssue, StandardSchema } from './schema';
 import { Errors } from './types';
 
 /**
- * Builds the nested errors object from a list of issues. Produces the same
- * shape as Zod's `error.format()`, but only depends on `issues`, so it works
- * with any Zod major version.
+ * Builds the nested errors object from a list of issues, the same shape as
+ * Zod's `error.format()`. Accepts the issues of any Standard Schema, whose
+ * path segments may be keys or `{ key }` objects.
  */
 export function formatIssues(
-  issues: readonly { path: readonly PropertyKey[]; message: string }[]
+  issues: readonly SchemaIssue[]
 ): Errors<any> | undefined {
   if (issues.length === 0) return undefined;
   const root: any = { _errors: [] };
   for (const issue of issues) {
     let node = root;
-    for (const segment of issue.path) {
-      const key = String(segment);
+    for (const segment of issue.path ?? []) {
+      const key = String(
+        typeof segment === 'object' && segment !== null ? segment.key : segment
+      );
       if (!node[key]) node[key] = { _errors: [] };
       node = node[key];
     }
@@ -29,16 +31,22 @@ export function formatIssues(
 
 /**
  * Runs the schema against the values and returns an errors tree, or undefined
- * when valid or when there is no schema.
+ * when valid or when there is no schema. Validation is synchronous: a schema
+ * with async rules is rejected rather than silently treated as valid.
  */
 export function validateValues(
-  schema: ZodType<any> | undefined,
+  schema: StandardSchema | undefined,
   values: unknown
 ): Errors<any> | undefined {
   if (!schema) return undefined;
-  const result = schema.safeParse(values);
-  if (result.success) return undefined;
-  return formatIssues(result.error.issues);
+  const result = schema['~standard'].validate(values);
+  if (result instanceof Promise) {
+    throw new Error(
+      'zustorm: the schema validates asynchronously, which withForm does not support'
+    );
+  }
+  if (!result.issues) return undefined;
+  return formatIssues(result.issues);
 }
 
 /** True if any node in an errors tree has at least one message. */

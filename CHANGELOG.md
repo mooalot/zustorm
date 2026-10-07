@@ -14,6 +14,7 @@
   ```
 
 - TypeScript 5.4 or newer is required (the type definitions use `NoInfer`).
+- Validation goes through [Standard Schema](https://standardschema.dev). Zod still works unchanged but must be 3.24 or newer; it is now an optional peer dependency.
 - Setting values on the store directly (for example `store.setState({ values })`) now marks the changed fields as dirty and touched, like a controller edit does. Use `reset(values)` to load values without flagging them.
 - Field paths into optional objects now resolve to `T | undefined` rather than being rejected, and values such as `Date`, `File`, `Map`, `Set` and functions are treated as leaves. A path like `when.getTime` that previously type-checked no longer does.
 
@@ -26,8 +27,9 @@
 - `getScopedFormApi(store, name)`, a form store scoped to a field with its own slices, flags and actions.
 - `withForm` accepts the initial values directly, a creator returning `{ values, ...extra }` with the store type inferred, or a curried `create<State>()` creator using `set` and `get`, at the root or at `formPath`.
 - Standalone helpers that take a store reference: `resetForm`, `resetTouched`, `resetDirty`, `resetErrors`, `touchAll`, `validateForm` and `handleSubmit`.
-- Zod 4 support. The suite runs against Zod 4, and CI runs it against Zod 3 as well.
-- Exported types: `BaseFormState`, `FormActions`, `FormComputed`, `FormInput`, `EnhancedForm`, `WithFormState`, `Leaf`, `ResetOptions`, `SubmitHandler`, `UseFormControllerOptions` and `UseStoreHook`.
+- Any Standard Schema library can validate a form: Zod 3.24+, Zod 4, Valibot, ArkType, Effect Schema and others. The suite runs against Zod 4 and Valibot, and CI runs it against Zod 3 as well.
+- `createSchema(validate)` wraps a plain validation function, for custom rules, JSON Schema validators such as Ajv, or server-side errors.
+- Exported types: `StandardSchema`, `FormSchema`, `SchemaIssue`, `ValidationIssue`, `InferSchemaOutput`, `BaseFormState`, `FormActions`, `FormComputed`, `FormInput`, `EnhancedForm`, `WithFormState`, `Leaf`, `ResetOptions`, `SubmitHandler`, `UseFormControllerOptions` and `UseStoreHook`.
 
 ### Changed
 

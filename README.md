@@ -16,16 +16,18 @@ Zustorm combines the simplicity of Zustand with the power of Zod validation to c
 
 - **Simple & Intuitive** - Familiar Zustand patterns for form state
 - **Type Safe** - Full TypeScript support with automatic type inference
-- **Built-in Validation** - Seamless Zod schema integration (Zod 3 and 4)
+- **Bring Your Own Validation** - Zod, Valibot, ArkType or any [Standard Schema](https://standardschema.dev) library, or a plain function
 - **High Performance** - Granular updates and minimal re-renders
 - **Flexible Architecture** - Global stores or React Context patterns
-- **Tiny** - About 5.5 kB gzipped; only peer deps: Zustand, Zod, and React
+- **Tiny** - About 5.5 kB gzipped; peer deps are Zustand and React, and a schema library is optional
 
 ## Installation
 
 ```bash
-npm install zustorm zustand zod react
+npm install zustorm zustand react
 ```
+
+Add the schema library you prefer, for example `npm install zod` or `npm install valibot`. The examples below use Zod.
 
 ## Quick Start
 
@@ -130,6 +132,54 @@ const useAppStore = create<AppState>()(
 ```
 
 Pass `getFormApi(useAppStore, 'form')` to `FormController` and `FormStoreProvider` to work with the nested form. `getDefaultForm(values)` from earlier versions still works but is deprecated: pass the values to `withForm` instead.
+
+### Validation
+
+`getSchema` returns anything that implements [Standard Schema](https://standardschema.dev): Zod 3.24+, Zod 4, Valibot, ArkType, Effect Schema and others. The errors tree, flags and messages are the same whichever library produced them.
+
+```typescript
+import * as v from 'valibot';
+
+const useUserForm = create(
+  withForm<UserForm>(
+    { name: '', email: '' },
+    {
+      getSchema: () =>
+        v.object({
+          name: v.pipe(v.string(), v.minLength(1, 'Name required')),
+          email: v.pipe(v.string(), v.email('Invalid email')),
+        }),
+    }
+  )
+);
+```
+
+For rules that are not a schema, `createSchema` wraps a function that returns the issues it finds. Each issue has a `message` and an optional `path`, as a dotted string or an array of keys; leave the path out for a form-level error. This is the hook for JSON Schema validators such as Ajv, cross-field rules, or errors a server sent back:
+
+```typescript
+import { createSchema } from 'zustorm';
+
+const schema = createSchema<Booking>((values) => {
+  const issues = [];
+  if (values.start > values.end)
+    issues.push({ message: 'Start must be before end' });
+  if (!values.guests.length)
+    issues.push({ path: 'guests', message: 'Add a guest' });
+  return issues;
+});
+
+// With Ajv (or any validator that reports a path and a message):
+const schema = createSchema<Booking>((values) =>
+  validate(values)
+    ? []
+    : validate.errors!.map((error) => ({
+        path: error.instancePath.split('/').filter(Boolean),
+        message: error.message ?? 'Invalid',
+      }))
+);
+```
+
+`getSchema` receives the whole store state, so the schema can depend on other state. Validation is synchronous; a schema with async rules is rejected with an error rather than treated as valid.
 
 ### Using the Hook
 
@@ -434,6 +484,7 @@ Here is how it is done with the FormController:
 | `formatIssues(issues)`                      | Turn schema issues into the nested errors tree                       |
 | `getErrorMessage(errors)`                   | First message in an errors tree, or undefined                        |
 | `getErrorMessages(errors)`                  | Every message in an errors tree                                      |
+| `createSchema(validate)`                    | Wrap a validation function as a schema `getSchema` can return        |
 
 ## Examples
 

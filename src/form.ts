@@ -4,11 +4,11 @@
  * that call those actions on a store.
  */
 import { getUntracked } from 'proxy-compare';
-import { ZodType } from 'zod';
 import { StateCreator, StoreApi, StoreMutatorIdentifier } from 'zustand';
 import { createComputer } from './computer';
 import { hasErrors, validateValues } from './errors';
 import { UNTRACKED_UPDATE, UntrackedUpdate } from './internal';
+import { FormSchema } from './schema';
 import {
   buildTouched,
   findChangedPaths,
@@ -120,8 +120,12 @@ type FormPathOption<S, K> =
 
 /** `withForm` options for a store that is itself the form. */
 export type WithFormOptions<S, T> = {
-  /** Returns the Zod schema to validate the values with. Receives the whole store state. */
-  getSchema?: (state: S) => ZodType<T> | undefined;
+  /**
+   * Returns the schema to validate the values with: anything implementing
+   * Standard Schema (Zod, Valibot, ArkType, ...) or `createSchema(...)`.
+   * Receives the whole store state.
+   */
+  getSchema?: (state: S) => FormSchema<T> | undefined;
 };
 
 /** `withForm` options for a form living at `formPath` inside a larger store. */
@@ -195,7 +199,7 @@ export function withForm(
   creatorOrValues: StateCreator<any, any, any> | object,
   options?: {
     formPath?: DeepKeys<any>;
-    getSchema?: (state: any) => ZodType<any> | undefined;
+    getSchema?: (state: any) => FormSchema<any> | undefined;
   }
 ): StateCreator<any, any, any> {
   const creator: StateCreator<any, any, any> =
@@ -210,7 +214,7 @@ export function withForm(
 
 function createFormEnhancer<S extends object>(
   formPath: DeepKeys<any> | undefined,
-  getSchema: ((state: S) => ZodType<any> | undefined) | undefined
+  getSchema: ((state: S) => FormSchema<any> | undefined) | undefined
 ) {
   const segments = toPath(formPath);
   const formKey = segments[0];
