@@ -106,18 +106,26 @@ describe('createSubmitHandler', () => {
         values: { name: 'Ada' },
         errors: valid ? undefined : { _errors: ['bad'] },
       }),
+      setSubmitting: (isSubmitting: boolean) =>
+        void calls.push(`submitting:${isSubmitting}`),
     };
     return { form, calls };
   }
 
   it('prevents default, touches, validates, then calls onValid with the values', async () => {
     const { form, calls } = fakeForm(true);
-    const onValid = vi.fn();
+    const onValid = vi.fn(() => void calls.push('onValid'));
     const onInvalid = vi.fn();
     const preventDefault = vi.fn();
     await createSubmitHandler(form, onValid, onInvalid)({ preventDefault });
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(calls).toEqual(['touchAll', 'validate']);
+    expect(calls).toEqual([
+      'submitting:true',
+      'touchAll',
+      'validate',
+      'onValid',
+      'submitting:false',
+    ]);
     expect(onValid).toHaveBeenCalledWith({ name: 'Ada' });
     expect(onInvalid).not.toHaveBeenCalled();
   });
@@ -130,6 +138,15 @@ describe('createSubmitHandler', () => {
     expect(onValid).not.toHaveBeenCalled();
     expect(onInvalid).toHaveBeenCalledWith({ _errors: ['bad'] });
     await expect(createSubmitHandler(form, onValid)()).resolves.toBeUndefined();
+  });
+
+  it('clears isSubmitting when the callback throws', async () => {
+    const { form, calls } = fakeForm(true);
+    const handler = createSubmitHandler(form, async () => {
+      throw new Error('save failed');
+    });
+    await expect(handler()).rejects.toThrow('save failed');
+    expect(calls[calls.length - 1]).toBe('submitting:false');
   });
 
   it('awaits async callbacks', async () => {

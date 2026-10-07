@@ -2,6 +2,7 @@
  * Error trees: the nested `{ _errors: string[] }` shape that mirrors the
  * values, how it is built from schema issues, and how it is read.
  */
+import { getPath } from './paths';
 import { SchemaIssue, StandardSchema } from './schema';
 import { Errors } from './types';
 
@@ -84,4 +85,52 @@ export function getErrorMessages(errors: unknown): string[] {
 /** The first message in an errors tree, or undefined when it is valid. */
 export function getErrorMessage(errors: unknown): string | undefined {
   return getErrorMessages(errors)[0];
+}
+
+function isNode(value: unknown): value is Record<string, any> {
+  return value != null && typeof value === 'object';
+}
+
+/**
+ * Immutably writes `node` at `segments` in an errors tree, creating missing
+ * ancestors with an empty `_errors`. Writing undefined removes the entry.
+ */
+export function setErrorNode(
+  errors: unknown,
+  segments: readonly string[],
+  node: unknown
+): any {
+  if (segments.length === 0) return node;
+  const base = isNode(errors) ? errors : { _errors: [] };
+  const [head, ...rest] = segments;
+  if (rest.length === 0 && node === undefined) {
+    const { [head]: _removed, ...others } = base;
+    return others;
+  }
+  return { ...base, [head]: setErrorNode(base[head], rest, node) };
+}
+
+/**
+ * Sets the messages at `segments` in an errors tree, keeping the node's
+ * children and every other error.
+ */
+export function setErrorMessages(
+  errors: unknown,
+  segments: readonly string[],
+  message: string | readonly string[]
+): any {
+  const node = getPath(errors, segments);
+  return setErrorNode(errors, segments, {
+    ...(isNode(node) ? node : {}),
+    _errors: typeof message === 'string' ? [message] : [...message],
+  });
+}
+
+/** Splits `setError`'s overloaded arguments into a path and a message. */
+export function parseSetErrorArgs(
+  args: readonly unknown[]
+): [path: unknown, message: string | readonly string[]] {
+  return args.length > 1
+    ? [args[0], args[1] as string | readonly string[]]
+    : [undefined, args[0] as string | readonly string[]];
 }

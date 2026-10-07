@@ -21,7 +21,8 @@
 ### Added
 
 - Form actions on the store and on every controller: `reset(values?, options?)`, `resetTouched()`, `resetDirty()`, `resetErrors()`, `touchAll()`, `validate()` and `handleSubmit(onValid, onInvalid?)`. `reset(values)` makes the supplied values the new baseline; pass `{ keepInitialValues: true }` to keep the old one. A controller scoped to a field resets or touches only that field.
-- Derived flags `isValid`, `isDirty` and `isTouched` on the form and on every controller.
+- Derived flags `isValid`, `isDirty` and `isTouched` on the form and on every controller, and `isSubmitting`, true while a `handleSubmit` callback runs.
+- `setErrors(errors)` and `setError(path, message)` on the form and every controller, plus standalone `setErrors(store, ...)` and `setError(store, ...)`, for errors a server returned or rules checked elsewhere. They hold until the field is edited or `validate()` runs.
 - Flat error access on controllers: `errorMessage` and `errorMessages`, plus the `getErrorMessage`, `getErrorMessages` and `formatIssues` helpers for use in selectors.
 - `useFormController(store, name?, options?)`, the hook form of `FormController`.
 - `getScopedFormApi(store, name)`, a form store scoped to a field with its own slices, flags and actions.
@@ -33,9 +34,10 @@
 
 ### Changed
 
-- Updates are immutable and structurally shared; `immer` and `lodash-es` are no longer bundled. The package is about 5.5 kB gzipped.
+- Updates are immutable and structurally shared; `immer` and `lodash-es` are no longer bundled. The package is about 6 kB gzipped.
 - Each controller holds a single store subscription and re-renders only when its own slice changes. A header reading `isValid` and `isDirty` re-renders only when a flag flips.
 - `isValid` and `errors` stay consistent after `resetErrors` and `validate`.
+- State written past the store api by another middleware, such as `persist` hydration or `devtools` time travel, is now picked up: errors and flags are recomputed from it and the values are adopted without being marked touched or dirty. Previously such writes left stale errors behind.
 - The README documents every store shape, the hook, flags, actions and error access, and the repository ships a render-count test and benchmarks against react-hook-form.
 
 ### Deprecated

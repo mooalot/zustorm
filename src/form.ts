@@ -6,7 +6,12 @@
 import { getUntracked } from 'proxy-compare';
 import { StateCreator, StoreApi, StoreMutatorIdentifier } from 'zustand';
 import { createComputer } from './computer';
-import { hasErrors, validateValues } from './errors';
+import {
+  hasErrors,
+  parseSetErrorArgs,
+  setErrorMessages,
+  validateValues,
+} from './errors';
 import { UNTRACKED_UPDATE, UntrackedUpdate } from './internal';
 import { FormSchema } from './schema';
 import {
@@ -50,17 +55,23 @@ export function createSubmitHandler<T>(
     touchAll: () => void;
     validate: () => boolean;
     getState: () => BaseFormState<T>;
+    setSubmitting: (isSubmitting: boolean) => void;
   },
   onValid: (values: T) => void | Promise<void>,
   onInvalid?: (errors: Errors<T>) => void | Promise<void>
 ): SubmitHandler {
   return async (event) => {
     event?.preventDefault?.();
-    form.touchAll();
-    const valid = form.validate();
-    const state = form.getState();
-    if (valid) await onValid(state.values);
-    else await onInvalid?.(state.errors as Errors<T>);
+    form.setSubmitting(true);
+    try {
+      form.touchAll();
+      const valid = form.validate();
+      const state = form.getState();
+      if (valid) await onValid(state.values);
+      else await onInvalid?.(state.errors as Errors<T>);
+    } finally {
+      form.setSubmitting(false);
+    }
   };
 }
 
@@ -248,7 +259,7 @@ function createFormEnhancer<S extends object>(
       const initialValues = initialForm.initialValues ?? initialForm.values;
 
       const updateForm = (
-        recipe: (form: BaseFormState<any>) => Partial<BaseFormState<any>>
+        recipe: (form: BaseFormState<any>) => Partial<FormState<any>>
       ) =>
         set((state: S) => {
           const form = readForm(state);
@@ -276,6 +287,13 @@ function createFormEnhancer<S extends object>(
         resetTouched: () => updateForm(() => ({ touched: undefined })),
         resetDirty: () => updateForm(() => ({ dirty: undefined })),
         resetErrors: () => updateForm(() => ({ errors: undefined })),
+        setErrors: (errors) => updateForm(() => ({ errors })),
+        setError: (...args: unknown[]) => {
+          const [path, message] = parseSetErrorArgs(args);
+          updateForm((form) => ({
+            errors: setErrorMessages(form.errors, toPath(path as any), message),
+          }));
+        },
         touchAll: () =>
           updateForm((form) => ({ touched: buildTouched(form.values) })),
         validate: () => {
@@ -292,6 +310,8 @@ function createFormEnhancer<S extends object>(
               touchAll: () => actions.touchAll(),
               validate: () => actions.validate(),
               getState: () => readForm(get()) as FormState<any>,
+              setSubmitting: (isSubmitting) =>
+                updateForm(() => ({ isSubmitting })),
             },
             onValid,
             onInvalid
@@ -300,11 +320,16 @@ function createFormEnhancer<S extends object>(
 
       // Attach the actions to the form object only, never to the root of a
       // larger store, so they cannot shadow the user's own root actions.
-      const form = { ...initialForm, initialValues, ...actions };
+      const form = {
+        ...initialForm,
+        initialValues,
+        isSubmitting: false,
+        ...actions,
+      };
       return segments.length === 0 ? form : setIn(initialState, segments, form);
     };
 
-    const compute = (state: S, prevState: S): Partial<S> => {
+    const compute = (state: S, prevState: S, external: boolean): Partial<S> => {
       const schema = getSchema?.(state);
 
       // Read the form through the tracked proxy so the computer re-runs when
@@ -323,7 +348,9 @@ function createFormEnhancer<S extends object>(
       const prevForm = readForm(prevState);
 
       const previousValues = prevForm?.values;
-      const resetRequested = suppressTracking;
+      // A reset, or state written past the store api (persist hydration,
+      // devtools), is adopted as is: validated, but not marked touched or dirty.
+      const resetRequested = suppressTracking || external;
       const changedPaths = Object.is(previousValues, form.values)
         ? []
         : findChangedPaths(previousValues, form.values);
@@ -403,6 +430,31 @@ export function resetDirty<T>(store: StoreApi<FormState<T>>): void {
 /** Clear all validation errors from a form store. */
 export function resetErrors<T>(store: StoreApi<FormState<T>>): void {
   store.getState().resetErrors();
+}
+
+/** Replace the errors of a form store, for example with errors a server returned. */
+export function setErrors<T>(
+  store: StoreApi<FormState<T>>,
+  errors: Errors<T> | undefined
+): void {
+  store.getState().setErrors(errors);
+}
+
+/** Set the messages of one field in a form store, or of the form with no path. */
+export function setError<T>(
+  store: StoreApi<FormState<T>>,
+  message: string | string[]
+): void;
+export function setError<T>(
+  store: StoreApi<FormState<T>>,
+  path: DeepKeys<T>,
+  message: string | string[]
+): void;
+export function setError<T>(
+  store: StoreApi<FormState<T>>,
+  ...args: unknown[]
+): void {
+  (store.getState().setError as (...a: unknown[]) => void)(...args);
 }
 
 /** Mark every field in a form store as touched. */

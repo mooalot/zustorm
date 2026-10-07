@@ -160,13 +160,30 @@ export type FormActions<T> = {
   /** Re-run the schema, write the errors to the store and return validity. */
   validate: () => boolean;
   /**
+   * Replace the errors with the given tree, for example errors a server
+   * returned. They hold until the values change or `validate` runs.
+   */
+  setErrors(errors: Errors<T> | undefined): void;
+  /**
+   * Set the messages of one field, keeping every other error. With a single
+   * argument, sets the messages of the form (or scope) itself.
+   */
+  setError: SetError<T>;
+  /**
    * Build a submit handler: prevents the event default, touches every field,
-   * validates, then calls `onValid` with the values or `onInvalid` with the errors.
+   * validates, then calls `onValid` with the values or `onInvalid` with the
+   * errors. `isSubmitting` is true while the callback runs.
    */
   handleSubmit: (
     onValid: (values: T) => void | Promise<void>,
     onInvalid?: (errors: Errors<T>) => void | Promise<void>
   ) => SubmitHandler;
+};
+
+/** `setError(message)` for the current scope, or `setError(path, message)`. */
+export type SetError<T> = {
+  (message: string | string[]): void;
+  (path: DeepKeys<T>, message: string | string[]): void;
 };
 
 /** Booleans derived from the form state by `withForm`. */
@@ -177,6 +194,12 @@ export type FormComputed = {
   isTouched: boolean;
   /** True if there are no validation errors. */
   isValid: boolean;
+};
+
+/** Status maintained by `withForm` that is not derived from the form data. */
+export type FormStatus = {
+  /** True while a `handleSubmit` callback is running. */
+  isSubmitting: boolean;
 };
 
 /** Data held by a form, before actions and computed flags are attached. */
@@ -205,7 +228,10 @@ export type BaseFormState<T> = {
 };
 
 /** Form data plus the computed flags and actions attached by `withForm`. */
-export type FormState<T> = BaseFormState<T> & FormComputed & FormActions<T>;
+export type FormState<T> = BaseFormState<T> &
+  FormComputed &
+  FormStatus &
+  FormActions<T>;
 
 /**
  * A utility type that recursively maps over the keys of an object T, adding
@@ -248,6 +274,10 @@ export type FormControllerRenderProps<Value, Form = any, Context = any> = {
   touchAll: () => void;
   /** Re-run validation and return whether the current form scope is valid. */
   validate: () => boolean;
+  /** Replace the errors of the current form scope. */
+  setErrors(errors: Errors<Value> | undefined): void;
+  /** Set the messages of this field, or of a field below it with a path. */
+  setError: SetError<Value>;
   /** Build a submit handler for the current form scope. */
   handleSubmit: FormActions<Value>['handleSubmit'];
   /** True if any field in the current form scope is dirty. */
@@ -256,6 +286,8 @@ export type FormControllerRenderProps<Value, Form = any, Context = any> = {
   isTouched: boolean;
   /** True if the current form scope has no validation errors. */
   isValid: boolean;
+  /** True while a `handleSubmit` callback is running anywhere in the form. */
+  isSubmitting: boolean;
   /**
    * onFormChange is a function that can be used to update the form state.
    * It can be a value or a function that returns a value.
@@ -363,6 +395,7 @@ type ValuesOf<F> = F extends { values: infer T } ? T : never;
 export type EnhancedForm<F> = F &
   BaseFormState<ValuesOf<F>> &
   FormComputed &
+  FormStatus &
   FormActions<ValuesOf<F>>;
 
 /** T with the property at K replaced by V, keeping every other property and its modifiers. */
@@ -380,7 +413,7 @@ export type ReplaceAt<T, P, V> = P extends readonly [infer H, ...infer R]
 /** A form state with the flags and actions removed: what a creator has to return for it. */
 export type RelaxedForm<F> = Omit<
   F,
-  keyof FormComputed | keyof FormActions<any>
+  keyof FormComputed | keyof FormStatus | keyof FormActions<any>
 >;
 
 /**

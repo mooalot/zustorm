@@ -5,7 +5,12 @@
  * providing scoped actions and flags.
  */
 import { StoreApi } from 'zustand';
-import { hasErrors } from './errors';
+import {
+  hasErrors,
+  parseSetErrorArgs,
+  setErrorMessages,
+  setErrorNode,
+} from './errors';
 import { computeFlags, createSubmitHandler } from './form';
 import { forwardUntracked, runUntracked } from './internal';
 import {
@@ -123,16 +128,22 @@ export function getScopedFormApi<
   // identity is what subscribers and React compare against.
   const cache = new WeakMap<object, FormState<V>>();
   let last: FormState<V> | undefined;
-  const scopedFrom = (root: BaseFormState<S>): FormState<V> => {
+  const scopedFrom = (root: FormState<S>): FormState<V> => {
     const cached = cache.get(root);
     if (cached) return cached;
     const base = getScopedBaseState<V>(root, segments);
     const unchanged =
       last !== undefined &&
+      last.isSubmitting === root.isSubmitting &&
       BASE_KEYS.every((key) => Object.is(base[key], last![key]));
     const scoped = unchanged
       ? last!
-      : ({ ...base, ...computeFlags(base), ...actions } as FormState<V>);
+      : ({
+          ...base,
+          ...computeFlags(base),
+          isSubmitting: root.isSubmitting,
+          ...actions,
+        } as FormState<V>);
     cache.set(root, scoped);
     last = scoped;
     return scoped;
@@ -142,6 +153,7 @@ export function getScopedFormApi<
 
   const getInitialState = () => ({
     ...getScopedFormState<S, K, V>(store.getInitialState(), path),
+    isSubmitting: store.getInitialState().isSubmitting,
     ...actions,
   });
 
@@ -184,6 +196,14 @@ export function getScopedFormApi<
 
   const subscribe: StoreApi<FormState<V>>['subscribe'] = (listener) =>
     store.subscribe((state, prevState) => {
+      const notify = () => {
+        const scopedState = scopedFrom(state);
+        const scopedPrevState = scopedFrom(prevState);
+        if (scopedState !== scopedPrevState) {
+          listener(scopedState, scopedPrevState);
+        }
+      };
+      if (state.isSubmitting !== prevState.isSubmitting) return notify();
       // Fast path: nothing in this scope changed. Checked per base slice so
       // untouched fields cost a few property reads per update and nothing else.
       for (const key of BASE_KEYS) {
@@ -194,12 +214,7 @@ export function getScopedFormApi<
             getPath(prevState[key], segments)
           )
         ) {
-          const scopedState = scopedFrom(state);
-          const scopedPrevState = scopedFrom(prevState);
-          if (scopedState !== scopedPrevState) {
-            listener(scopedState, scopedPrevState);
-          }
-          return;
+          return notify();
         }
       }
     });
@@ -224,6 +239,26 @@ export function getScopedFormApi<
       setState({ touched: undefined } as Partial<FormState<V>>),
     resetDirty: () => setState({ dirty: undefined } as Partial<FormState<V>>),
     resetErrors: () => setState({ errors: undefined } as Partial<FormState<V>>),
+    setErrors: (errors) =>
+      store.setState(
+        (root) =>
+          ({
+            errors: setErrorNode(root.errors, segments, errors),
+          }) as Partial<FormState<S>>
+      ),
+    setError: (...args: unknown[]) => {
+      const [path, message] = parseSetErrorArgs(args);
+      store.setState(
+        (root) =>
+          ({
+            errors: setErrorMessages(
+              root.errors,
+              [...segments, ...toPath(path as any)],
+              message
+            ),
+          }) as Partial<FormState<S>>
+      );
+    },
     touchAll: () =>
       store.setState((root) => {
         const values = getPath(root.values, segments);
@@ -242,6 +277,8 @@ export function getScopedFormApi<
           touchAll: () => actions.touchAll(),
           validate: () => actions.validate(),
           getState,
+          setSubmitting: (isSubmitting) =>
+            store.setState({ isSubmitting } as Partial<FormState<S>>),
         },
         onValid,
         onInvalid

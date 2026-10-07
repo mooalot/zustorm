@@ -19,7 +19,7 @@ Zustorm combines the simplicity of Zustand with the power of Zod validation to c
 - **Bring Your Own Validation** - Zod, Valibot, ArkType or any [Standard Schema](https://standardschema.dev) library, or a plain function
 - **High Performance** - Granular updates and minimal re-renders
 - **Flexible Architecture** - Global stores or React Context patterns
-- **Tiny** - About 5.5 kB gzipped; peer deps are Zustand and React, and a schema library is optional
+- **Tiny** - About 6 kB gzipped; peer deps are Zustand and React, and a schema library is optional
 
 ## Installation
 
@@ -181,6 +181,26 @@ const schema = createSchema<Booking>((values) =>
 
 `getSchema` receives the whole store state, so the schema can depend on other state. Validation is synchronous; a schema with async rules is rejected with an error rather than treated as valid.
 
+### Zustand Middleware
+
+A form store is an ordinary Zustand store, so Zustand's middlewares compose with `withForm`. Wrap it in `devtools` to inspect every edit, or in `persist` to keep a draft across reloads:
+
+```typescript
+import { devtools, persist } from 'zustand/middleware';
+
+const useUserForm = create<FormState<UserForm>>()(
+  devtools(
+    persist(withForm<UserForm>({ name: '', email: '' }, { getSchema }), {
+      name: 'user-form',
+      partialize: ({ values }) => ({ values }),
+    }),
+    { name: 'user-form' }
+  )
+);
+```
+
+State written by a middleware, such as a restored draft or a devtools time-travel step, is adopted as it is: errors and flags are recomputed from it, but the restored values are not marked touched or dirty. Persist `initialValues`, `touched` and `dirty` alongside `values` if you want those restored as well.
+
 ### Using the Hook
 
 `useFormController` gives you everything the `FormController` render prop receives, for cases where a hook reads better than a render prop:
@@ -311,6 +331,9 @@ Please note that `contextSelector` uses `options.useStore` internally, so this c
 | `resetErrors()`                     | Clear errors until the next value change or `validate()`                 |
 | `touchAll()`                        | Mark every field as touched, for example to show all errors              |
 | `validate()`                        | Re-run the schema, write the errors and return validity                  |
+| `setErrors(errors)`                 | Replace the errors, for example with errors a server returned            |
+| `setError(path, message)`           | Set one field's messages, keeping the rest; `setError(message)` for root |
+| `isSubmitting`                      | True while a `handleSubmit` callback is running                          |
 | `handleSubmit(onValid, onInvalid?)` | Build an `onSubmit` handler that touches all, validates and calls back   |
 
 #### Reading errors
@@ -322,6 +345,8 @@ Please note that `contextSelector` uses `options.useStore` internally, so this c
 | `errorMessage`                    | First message for this field or anything below it, else `undefined` |
 | `errorMessages`                   | Every message for this field and the fields below it                |
 | `isTouched`, `isDirty`, `isValid` | Flags for this field and the fields below it                        |
+| `isSubmitting`                    | True while the form is being submitted                              |
+| `setErrors`, `setError`           | Write errors for this field or the fields below it                  |
 | `error`, `touched`, `dirty`       | The raw nested trees, when you need the structure                   |
 
 ```typescript
@@ -392,12 +417,49 @@ const handleSubmit = useStore(store, (state) => state.handleSubmit);
 
 The handler calls `event.preventDefault()`, marks every field as touched so all errors become visible, validates, and then calls `onValid` with the values or `onInvalid` with the errors.
 
+`isSubmitting` is true from the moment the handler runs until the callback settles, so a submit button can be disabled while an async save is in flight:
+
+```typescript
+const isSubmitting = useStore(store, (state) => state.isSubmitting);
+
+<button type="submit" disabled={isSubmitting}>
+  {isSubmitting ? 'Saving…' : 'Save'}
+</button>
+```
+
+#### Server errors
+
+When the server rejects a submission, write its errors into the form. `setError` sets the messages of one field and keeps every other error; with a single argument it sets a message on the form (or the controller's field) itself. `setErrors` replaces the whole tree. Either holds until the field is edited again or `validate()` runs, at which point the schema takes over.
+
+```typescript
+const onSubmit = handleSubmit(async (values) => {
+  const response = await save(values);
+  if (response.status === 409) {
+    store.getState().setError('email', 'This email is already registered');
+  }
+});
+
+// From a controller, no path needed:
+<FormController
+  store={store}
+  name="email"
+  render={({ value, onChange, errorMessage, setError }) => ...}
+/>
+
+// A whole tree, in the same shape as `errors`:
+store.getState().setErrors({
+  _errors: ['Please review the highlighted fields'],
+  email: { _errors: ['Already registered'] },
+});
+```
+
 Equivalent standalone helpers are exported for use with a store reference:
 
 ```typescript
 import {
   resetForm,
   resetTouched,
+  setError,
   touchAll,
   validateForm,
   handleSubmit,
@@ -406,6 +468,7 @@ import {
 resetForm(store);
 resetTouched(store);
 touchAll(store);
+setError(store, 'email', 'Already registered');
 const valid = validateForm(store);
 const onSubmit = handleSubmit(store, (values) => save(values));
 ```
@@ -478,6 +541,8 @@ Here is how it is done with the FormController:
 | `resetTouched(store)`                       | Clear all touched state                                              |
 | `resetDirty(store)`                         | Clear all dirty state                                                |
 | `resetErrors(store)`                        | Clear errors until the next value change                             |
+| `setErrors(store, errors)`                  | Replace the errors of a form store                                   |
+| `setError(store, path?, message)`           | Set one field's messages, or the form's with no path                 |
 | `touchAll(store)`                           | Mark every field as touched                                          |
 | `validateForm(store)`                       | Re-run validation and return validity                                |
 | `handleSubmit(store, onValid, onInvalid?)`  | Build a form submit handler                                          |

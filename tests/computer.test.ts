@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createStore } from 'zustand';
+import { createStore, StateCreator, StoreApi } from 'zustand';
 import { createComputer } from '../src/computer';
 
 describe('createComputer', () => {
@@ -393,5 +393,71 @@ describe('createComputer', () => {
       expect(store.getState().total).toBe(10);
       expect(store.getState().computeCallCount).toBe(2);
     });
+  });
+});
+
+describe('writes that bypass setState', () => {
+  interface State {
+    count: number;
+    label: string;
+    doubled: number;
+  }
+  type Creator = StateCreator<State, [], []>;
+
+  // An outer middleware that keeps the store's raw `set`, which is what
+  // persist's hydration and devtools' time travel write with.
+  function make() {
+    const calls: boolean[] = [];
+    let rawSet!: StoreApi<State>['setState'];
+    const captureRawSet =
+      (creator: Creator): Creator =>
+      (set, get, api) => {
+        rawSet = set;
+        return creator(set, get, api);
+      };
+    const store = createStore<State>()(
+      captureRawSet(
+        createComputer<State>((state, _prev, external) => {
+          calls.push(external);
+          return { doubled: state.count * 2 };
+        })(() => ({ count: 1, label: 'a', doubled: 0 }))
+      )
+    );
+    calls.length = 0;
+    return { store, calls, rawSet: (s: State) => rawSet(s, true) };
+  }
+
+  it('adopts a raw replace and recomputes, flagged as external', () => {
+    const { store, calls, rawSet } = make();
+    rawSet({ count: 5, label: 'b', doubled: 0 });
+    expect(store.getState()).toEqual({ count: 5, label: 'b', doubled: 10 });
+    expect(calls).toEqual([true]);
+    // The baseline moved too: writing the same count again is a no-op.
+    store.setState({ count: 5 });
+    expect(calls).toEqual([true]);
+    store.setState({ count: 6 });
+    expect(store.getState().doubled).toBe(12);
+    expect(calls).toEqual([true, false]);
+  });
+
+  it('ignores a raw write that changes nothing the compute reads', () => {
+    const { store, calls, rawSet } = make();
+    rawSet({ count: 1, label: 'z', doubled: 2 });
+    expect(store.getState().label).toBe('z');
+    expect(calls).toEqual([]);
+  });
+
+  it('computes once per setState, never again from its own write', () => {
+    const { store, calls } = make();
+    store.setState({ count: 2 });
+    store.setState((s) => ({ count: s.count + 1 }));
+    expect(calls).toEqual([false, false]);
+    expect(store.getState().doubled).toBe(6);
+  });
+
+  it('replace through setState drops the other keys', () => {
+    const { store } = make();
+    store.setState({ count: 3, doubled: 0 } as State, true);
+    expect(store.getState()).toEqual({ count: 3, doubled: 6 });
   });
 });

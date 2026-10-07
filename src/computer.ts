@@ -18,13 +18,18 @@ type Computed = <T extends object>(
   creator: StateCreator<T, [...Mps], Mcs>
 ) => StateCreator<T, Mps, [...Mcs]>;
 
-type Compute<T> = (state: T, prev: T) => Partial<T>;
+/**
+ * Computes the derived part of `state`. `external` is true when the state was
+ * written past this middleware (an outer middleware's raw `set`, such as
+ * persist hydration or devtools time travel) rather than through `setState`.
+ */
+type Compute<T> = (state: T, prev: T, external: boolean) => Partial<T>;
 
 export const createComputer =
   createComputerImplementation as unknown as Computed;
 
 function createComputerImplementation<T extends object>(
-  compute: (state: T, prev: T) => Partial<T>
+  compute: Compute<T>
 ): (creator: StateCreator<T>) => StateCreator<T> {
   return (creator) => {
     return (set, get, api) => {
@@ -35,7 +40,7 @@ function createComputerImplementation<T extends object>(
 
       let proxyState = {} as T;
 
-      function runCompute(state: T): Partial<T> {
+      function runCompute(state: T, prev: T, external: boolean): Partial<T> {
         proxyState = { ...state };
         affected = new WeakMap();
         for (const key in proxyState) {
@@ -49,32 +54,41 @@ function createComputerImplementation<T extends object>(
           proxyCache,
           targetCache
         );
-        const computed = compute(proxy, get());
+        const computed = compute(proxy, prev, external);
         return getUntracked(computed) ?? computed;
       }
 
+      const trackedChanged = (next: T) =>
+        isChanged(proxyState, next, affected, compareCache, Object.is);
+
+      // Writes made here are recognised by the subscription below, so only
+      // writes from elsewhere are treated as external.
+      let writing = false;
+      const write = (partial: Partial<T>, replace?: boolean) => {
+        writing = true;
+        try {
+          set(partial as T, replace as true);
+        } finally {
+          writing = false;
+        }
+      };
+
       const setWithComputed: typeof set = (partial, replace) => {
+        const prev = get();
         const nextPartial =
-          typeof partial === 'function' ? partial(get()) : partial;
+          typeof partial === 'function' ? partial(prev) : partial;
+        const merged = replace
+          ? (nextPartial as T)
+          : { ...prev, ...nextPartial };
 
-        const merged = { ...get(), ...nextPartial };
-
-        const touched = isChanged(
-          proxyState,
-          merged,
-          affected,
-          compareCache,
-          Object.is
-        );
-        if (touched) {
-          const computed = runCompute(merged);
-          const withComputed = { ...nextPartial, ...computed };
-          set(withComputed, replace as false);
+        if (trackedChanged(merged)) {
+          const computed = runCompute(merged, prev, false);
+          write({ ...nextPartial, ...computed }, replace);
           // Keep the comparison baseline equal to what was stored, so the next
           // update is compared against the computed state, not the input.
           Object.assign(proxyState, computed);
         } else {
-          set(nextPartial, replace as false);
+          write(nextPartial, replace);
         }
       };
 
@@ -82,8 +96,18 @@ function createComputerImplementation<T extends object>(
         setState: setWithComputed,
       });
 
+      // A write that bypassed `setState` (persist hydration, devtools time
+      // travel, an outer middleware calling its raw `set`) is adopted as is:
+      // the derived state is brought up to date without being re-tracked.
+      api.subscribe((state, prev) => {
+        if (writing || !trackedChanged(state)) return;
+        const computed = runCompute(state, prev, true);
+        Object.assign(proxyState, computed);
+        if (Object.keys(computed).length > 0) write(computed);
+      });
+
       const initialState = creator(setWithComputed, get, api);
-      const initialComputed = runCompute(initialState);
+      const initialComputed = runCompute(initialState, get(), false);
       Object.assign(proxyState, initialComputed);
       return { ...initialState, ...initialComputed };
     };

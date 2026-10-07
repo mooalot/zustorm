@@ -104,6 +104,15 @@ export function useFormController<
     () => scopedStore.getState().resetErrors(),
     [scopedStore]
   );
+  const setErrors = useCallback<FormControllerRenderProps<V>['setErrors']>(
+    (errors) => scopedStore.getState().setErrors(errors),
+    [scopedStore]
+  );
+  const setError = useCallback(
+    (...args: unknown[]) =>
+      (scopedStore.getState().setError as (...a: unknown[]) => void)(...args),
+    [scopedStore]
+  ) as FormControllerRenderProps<V>['setError'];
   const touchAll = useCallback(
     () => scopedStore.getState().touchAll(),
     [scopedStore]
@@ -166,10 +175,13 @@ export function useFormController<
     dirty,
     context,
     ...flags,
+    isSubmitting: scoped.isSubmitting,
     reset,
     resetTouched,
     resetDirty,
     resetErrors,
+    setErrors,
+    setError,
     touchAll,
     validate,
     handleSubmit,

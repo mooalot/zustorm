@@ -665,3 +665,44 @@ describe('schemas', () => {
     ]);
   });
 });
+
+describe('server errors and submission status', () => {
+  it('setError takes a message, or a path and a message', () => {
+    const actions = store.getState();
+    actions.setError('Form-level');
+    actions.setError(['One', 'Two']);
+    actions.setError('user.name', 'Taken');
+    actions.setError(['friends', 0, 'emails', 1], 'Bad');
+    // @ts-expect-error unknown path
+    actions.setError('user.nope', 'x');
+    // A lone string is always a message, even when it looks like a path.
+    actions.setError('user.name');
+    actions.setErrors({
+      _errors: ['x'],
+      user: { _errors: [], name: { _errors: ['y'] } },
+    });
+    actions.setErrors(undefined);
+    // @ts-expect-error not an errors tree for Profile
+    actions.setErrors({ nope: { _errors: [] } });
+    expectTypeOf(actions.isSubmitting).toEqualTypeOf<boolean>();
+  });
+
+  it('a leaf controller can only set its own message', () => {
+    const field = useFormController(store, 'user.name');
+    field.setError('Taken');
+    // @ts-expect-error a string field has no paths below it
+    field.setError('anything', 'Taken');
+    expectTypeOf(field.isSubmitting).toEqualTypeOf<boolean>();
+
+    const user = useFormController(store, 'user');
+    user.setError('name', 'Taken');
+    user.setErrors({ _errors: [], name: { _errors: ['x'] } });
+  });
+
+  it('stores built from values or creators carry isSubmitting', () => {
+    const s = createStore(withForm({ a: 1 }));
+    expectTypeOf(s.getState().isSubmitting).toEqualTypeOf<boolean>();
+    const c = createStore(withForm(() => ({ values: { a: 1 }, n: 0 })));
+    expectTypeOf(c.getState().isSubmitting).toEqualTypeOf<boolean>();
+  });
+});
