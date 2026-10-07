@@ -1,19 +1,16 @@
 import { z } from 'zod';
 import { create } from 'zustand';
-import { withForm, getDefaultForm, FormController } from 'zustorm';
+import { FormController, withForm } from 'zustorm';
 
 type Form = {
   name: string;
   email: string;
 };
 
+// Initial values go straight into withForm; the store type is inferred.
 const useUserForm = create(
-  withForm(
-    () =>
-      getDefaultForm<Form>({
-        name: '',
-        email: '',
-      }),
+  withForm<Form>(
+    { name: '', email: '' },
     {
       getSchema: () =>
         z.object({
@@ -24,49 +21,47 @@ const useUserForm = create(
   )
 );
 
-// Use in component
 function UserForm() {
-  const isValid = useUserForm((state) => !state.errors);
-  const isDirty = useUserForm((state) => state.dirty);
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isValid) {
-      const formData = useUserForm.getState().values;
-      console.log('Form submitted:', formData);
-      // Handle form submission logic here
-    } else {
-      console.error('Form is invalid');
-    }
-  };
+  const isValid = useUserForm((state) => state.isValid);
+  const isDirty = useUserForm((state) => state.isDirty);
+  const handleSubmit = useUserForm((state) => state.handleSubmit);
 
   return (
-    <form>
+    <form
+      onSubmit={handleSubmit(
+        (values) => console.log('Form submitted:', values),
+        (errors) => console.error('Form is invalid', errors)
+      )}
+    >
       <FormController
         store={useUserForm}
         name="name"
-        render={({ value, onChange, error }) => (
+        render={({ value, onChange, onBlur, errorMessage, isTouched }) => (
           <input
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
             placeholder="Name"
-            style={{ borderColor: error ? 'red' : 'gray' }}
+            title={isTouched ? errorMessage : undefined}
+            style={{ borderColor: isTouched && errorMessage ? 'red' : 'gray' }}
           />
         )}
       />
       <FormController
         store={useUserForm}
         name="email"
-        render={({ value, onChange, error }) => (
+        render={({ value, onChange, onBlur, errorMessage, isTouched }) => (
           <input
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
             placeholder="Email"
-            style={{ borderColor: error ? 'red' : 'gray' }}
+            title={isTouched ? errorMessage : undefined}
+            style={{ borderColor: isTouched && errorMessage ? 'red' : 'gray' }}
           />
         )}
       />
-      <button disabled={!isValid || !isDirty} onClick={onSubmit}>
+      <button type="submit" disabled={!isValid || !isDirty}>
         Submit
       </button>
     </form>

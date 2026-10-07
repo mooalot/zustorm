@@ -1,21 +1,22 @@
 import { z } from 'zod';
 import { create } from 'zustand';
-import { FormController, getDefaultForm, withForm, FormState } from 'zustorm';
+import { FormController, withForm } from 'zustorm';
 
-type FriendsForm = {
-  friends: {
-    name: string;
-    age: number;
-    email: string;
-  }[];
+type Friend = {
+  name: string;
+  age: number;
+  email: string;
 };
 
-const useFriendsForm = create<FormState<FriendsForm>>()(
-  withForm(
-    () =>
-      getDefaultForm<FriendsForm>({
-        friends: [{ name: '', age: 0, email: '' }],
-      }),
+type FriendsForm = {
+  friends: Friend[];
+};
+
+const emptyFriend: Friend = { name: '', age: 0, email: '' };
+
+const useFriendsForm = create(
+  withForm<FriendsForm>(
+    { friends: [emptyFriend] },
     {
       getSchema: () =>
         z.object({
@@ -33,18 +34,56 @@ const useFriendsForm = create<FormState<FriendsForm>>()(
   )
 );
 
-function App() {
-  const isValid = useFriendsForm((state) => !state.errors);
-  const isDirty = useFriendsForm((state) => state.dirty);
+function FriendField({
+  index,
+  field,
+  label,
+  type = 'text',
+}: {
+  index: number;
+  field: keyof Friend;
+  label: string;
+  type?: string;
+}) {
+  return (
+    <FormController
+      store={useFriendsForm}
+      name={`friends.${index}.${field}`}
+      render={({ value, onChange, onBlur, errorMessage, isTouched }) => (
+        <div style={{ marginBottom: '10px' }}>
+          <label>{label}:</label>
+          <input
+            type={type}
+            value={value}
+            onChange={(e) =>
+              onChange(
+                (type === 'number'
+                  ? Number(e.target.value)
+                  : e.target.value) as Friend[typeof field]
+              )
+            }
+            onBlur={onBlur}
+            placeholder={label}
+            style={{ marginLeft: '10px', padding: '5px' }}
+          />
+          {isTouched && errorMessage && (
+            <div style={{ color: 'red', fontSize: '12px' }}>{errorMessage}</div>
+          )}
+        </div>
+      )}
+    />
+  );
+}
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isValid) {
-      const formData = useFriendsForm.getState().values;
-      console.log('Form submitted:', formData);
-      alert('Form submitted! Check console for data.');
-    }
-  };
+function App() {
+  const isValid = useFriendsForm((state) => state.isValid);
+  const isDirty = useFriendsForm((state) => state.isDirty);
+  const handleSubmit = useFriendsForm((state) => state.handleSubmit);
+
+  const onSubmit = handleSubmit((values) => {
+    console.log('Form submitted:', values);
+    alert('Form submitted! Check console for data.');
+  });
 
   return (
     <div style={{ maxWidth: '600px', margin: '50px auto', padding: '20px' }}>
@@ -56,7 +95,7 @@ function App() {
         <FormController
           store={useFriendsForm}
           name="friends"
-          render={({ value, onChange }) => (
+          render={({ value, onChange, errorMessage }) => (
             <div>
               {value.map((_, index) => (
                 <div
@@ -70,95 +109,21 @@ function App() {
                 >
                   <h3>Friend #{index + 1}</h3>
 
-                  <div>
-                    <FormController
-                      store={useFriendsForm}
-                      name={`friends.${index}.name`}
-                      render={({
-                        value: name,
-                        onChange: onNameChange,
-                        error,
-                      }) => (
-                        <div style={{ marginBottom: '10px' }}>
-                          <label>Name:</label>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => onNameChange(e.target.value)}
-                            placeholder="Enter name"
-                            style={{ marginLeft: '10px', padding: '5px' }}
-                          />
-                          {error && (
-                            <div style={{ color: 'red', fontSize: '12px' }}>
-                              {JSON.stringify(error)}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <FormController
-                      store={useFriendsForm}
-                      name={`friends.${index}.age`}
-                      render={({
-                        value: age,
-                        onChange: onAgeChange,
-                        error,
-                      }) => (
-                        <div style={{ marginBottom: '10px' }}>
-                          <label>Age:</label>
-                          <input
-                            type="number"
-                            value={age}
-                            onChange={(e) =>
-                              onAgeChange(Number(e.target.value))
-                            }
-                            placeholder="Age"
-                            style={{ marginLeft: '10px', padding: '5px' }}
-                          />
-                          {error && (
-                            <div style={{ color: 'red', fontSize: '12px' }}>
-                              {JSON.stringify(error)}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <FormController
-                      store={useFriendsForm}
-                      name={`friends.${index}.email`}
-                      render={({
-                        value: email,
-                        onChange: onEmailChange,
-                        error,
-                      }) => (
-                        <div style={{ marginBottom: '10px' }}>
-                          <label>Email:</label>
-                          <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => onEmailChange(e.target.value)}
-                            placeholder="friend@example.com"
-                            style={{ marginLeft: '10px', padding: '5px' }}
-                          />
-                          {error && (
-                            <div style={{ color: 'red', fontSize: '12px' }}>
-                              {JSON.stringify(error)}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    />
-                  </div>
+                  <FriendField index={index} field="name" label="Name" />
+                  <FriendField
+                    index={index}
+                    field="age"
+                    label="Age"
+                    type="number"
+                  />
+                  <FriendField index={index} field="email" label="Email" />
 
                   {value.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        const newFriends = value.filter((_, i) => i !== index);
-                        onChange(newFriends);
-                      }}
+                      onClick={() =>
+                        onChange(value.filter((_, i) => i !== index))
+                      }
                       style={{
                         background: 'red',
                         color: 'white',
@@ -173,15 +138,14 @@ function App() {
                 </div>
               ))}
 
+              {/* The array's own errors (e.g. the min length), not its items'. */}
+              {errorMessage && (
+                <div style={{ color: 'red' }}>{errorMessage}</div>
+              )}
+
               <button
                 type="button"
-                onClick={() => {
-                  console.log('Adding new friend', value);
-                  onChange((value) => [
-                    ...value,
-                    { name: '', age: 0, email: '' },
-                  ]);
-                }}
+                onClick={() => onChange((friends) => [...friends, emptyFriend])}
                 style={{
                   background: 'green',
                   color: 'white',

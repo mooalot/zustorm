@@ -5,12 +5,7 @@
  */
 import { getUntracked } from 'proxy-compare';
 import { ZodType } from 'zod';
-import {
-  createStore,
-  StateCreator,
-  StoreApi,
-  StoreMutatorIdentifier,
-} from 'zustand';
+import { StateCreator, StoreApi, StoreMutatorIdentifier } from 'zustand';
 import { createComputer } from './computer';
 import { hasErrors, validateValues } from './errors';
 import { UNTRACKED_UPDATE, UntrackedUpdate } from './internal';
@@ -365,36 +360,18 @@ function createFormEnhancer<S extends object>(
 }
 
 /**
- * Creates a default form state object with the provided initial values.
+ * Returns `{ values, initialValues }` for the supplied values.
  *
- * @param values - The initial values for the form
- * @returns A FormState object with default properties
+ * @deprecated `withForm` accepts the initial values directly, or a creator
+ * returning `{ values }`:
+ * ```ts
+ * create(withForm(initialValues, { getSchema }));
+ * create(withForm(() => ({ values: initialValues, extra: 0 }), { getSchema }));
+ * ```
  */
 export function getDefaultForm<T extends object>(values: T): FormInput<T> {
   return { values, initialValues: values };
 }
-
-/**
- * @deprecated Use `createStore` with `withForm` instead:
- * ```ts
- * const store = createStore<FormState<T>>()(
- *   withForm(() => getDefaultForm(initialValue), { getSchema })
- * );
- * ```
- */
-export const createFormStore = <T extends object>(
-  initialValue: T,
-  options?: {
-    /** The function to get the schema for the form. */
-    getSchema?: (state: FormState<T>) => ZodType<T>;
-  }
-) => {
-  return createStore<FormState<T>>()(
-    withForm(() => getDefaultForm(initialValue), {
-      getSchema: options?.getSchema,
-    })
-  );
-};
 
 // ---------------------------------------------------------------------------
 // Standalone helpers: the store actions, callable with a store reference.

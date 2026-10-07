@@ -129,21 +129,26 @@ describe('FormState', () => {
 describe('withForm', () => {
   it('infers the form type from a root form creator', () => {
     const useForm = create(
-      withForm(() => getDefaultForm<Profile>({} as Profile), {
+      withForm(() => ({ values: {} as Profile }), {
         getSchema: (state) => {
-          expectTypeOf(state).toEqualTypeOf<FormState<Profile>>();
+          // Structurally the full form state (an intersection, so not identical).
+          expectTypeOf(state).toMatchTypeOf<FormState<Profile>>();
+          expectTypeOf<FormState<Profile>>().toMatchTypeOf(state);
           return z.object({}) as unknown as z.ZodType<Profile>;
         },
       })
     );
     expectTypeOf(useForm.getState().values).toEqualTypeOf<Profile>();
+    expectTypeOf(useForm.getState().errors).toEqualTypeOf<
+      Errors<Profile> | undefined
+    >();
     expectTypeOf(useForm.getState().reset).toBeFunction();
     expectTypeOf(useForm((s) => s.isValid)).toEqualTypeOf<boolean>();
   });
 
   it('requires formPath when the store is not itself a form', () => {
     const app = createStore<App>()(
-      withForm(() => ({ form: getDefaultForm({} as Profile), counter: 0 }), {
+      withForm(() => ({ form: { values: {} as Profile }, counter: 0 }), {
         formPath: 'form',
         getSchema: (state) => {
           expectTypeOf(state).toEqualTypeOf<App>();
@@ -156,11 +161,11 @@ describe('withForm', () => {
 
     createStore<App>()(
       // @ts-expect-error formPath is required for a store that is not a form
-      withForm(() => ({ form: getDefaultForm({} as Profile), counter: 0 }), {})
+      withForm(() => ({ form: { values: {} as Profile }, counter: 0 }), {})
     );
     createStore<App>()(
       // @ts-expect-error unknown path
-      withForm(() => ({ form: getDefaultForm({} as Profile), counter: 0 }), {
+      withForm(() => ({ form: { values: {} as Profile }, counter: 0 }), {
         formPath: 'nope',
       })
     );
@@ -466,7 +471,7 @@ describe('withForm initialization forms', () => {
     expectTypeOf(useApp.getState().theme).toEqualTypeOf<string>();
   });
 
-  it('still accepts getDefaultForm and an explicit store type', () => {
+  it('still accepts the deprecated getDefaultForm and an explicit store type', () => {
     expectTypeOf(getDefaultForm({} as Profile)).toEqualTypeOf<
       FormInput<Profile>
     >();
@@ -554,7 +559,7 @@ describe('withForm call shapes', () => {
         }
       )
     );
-    createStore<FormState<P>>()(withForm(() => getDefaultForm({ a: 1 })));
+    createStore<FormState<P>>()(withForm(() => ({ values: { a: 1 } })));
     create<Store>()(
       // @ts-expect-error wrong values shape under an explicit type
       withForm(() => ({ values: { a: 'no' }, n: 0, inc: () => {} }))

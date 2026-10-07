@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { create } from 'zustand';
-import { getDefaultForm, FormState, FormController, withForm } from 'zustorm';
+import { FormController, withForm } from 'zustorm';
 
 type UserForm = {
   name: string;
@@ -12,203 +12,108 @@ type UserForm = {
   };
 };
 
-const useUserForm = create<FormState<UserForm>>()(
-  withForm(
-    () =>
-      getDefaultForm<UserForm>({
-        name: 'John Doe',
-        email: 'john@example.com',
-        address: {
-          street: '123 Main St',
-          city: 'Anytown',
-          zip: '12345',
-        },
-      }),
+const schema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email'),
+  address: z.object({
+    street: z.string().min(1, 'Street is required'),
+    city: z.string().min(1, 'City is required'),
+    zip: z.string().min(1, 'ZIP is required'),
+  }),
+});
+
+// Pass the initial values straight to withForm. Everything else (flags,
+// actions, errors, touched and dirty trees) is added by the middleware.
+const useUserForm = create(
+  withForm<UserForm>(
     {
-      getSchema: () =>
-        z.object({
-          name: z.string().min(1, 'Name is required'),
-          email: z.string().email('Invalid email'),
-          address: z.object({
-            street: z.string().min(1, 'Street is required'),
-            city: z.string().min(1, 'City is required'),
-            zip: z.string().min(1, 'ZIP is required'),
-          }),
-        }),
-    }
+      name: 'John Doe',
+      email: 'john@example.com',
+      address: {
+        street: '123 Main St',
+        city: 'Anytown',
+        zip: '12345',
+      },
+    },
+    { getSchema: () => schema }
   )
 );
 
-function App() {
-  const isValid = useUserForm((state) => !state.errors);
-  const isDirty = useUserForm(
-    (state) => state.dirty && Object.keys(state.dirty).length > 0
-  );
+const inputStyle = (invalid: boolean): React.CSSProperties => ({
+  width: '100%',
+  padding: '8px',
+  border: `1px solid ${invalid ? 'red' : 'gray'}`,
+});
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isValid) {
-      const formData = useUserForm.getState().values;
-      console.log('Form submitted:', formData);
+function Field({
+  name,
+  label,
+  type = 'text',
+}: {
+  name: 'name' | 'email' | 'address.street' | 'address.city' | 'address.zip';
+  label: string;
+  type?: string;
+}) {
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <label>{label}:</label>
+      <FormController
+        store={useUserForm}
+        name={name}
+        render={({ value, onChange, onBlur, errorMessage, isTouched }) => (
+          <div>
+            <input
+              type={type}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onBlur}
+              style={inputStyle(isTouched && !!errorMessage)}
+            />
+            {isTouched && errorMessage && (
+              <div style={{ color: 'red', fontSize: '12px' }}>
+                {errorMessage}
+              </div>
+            )}
+          </div>
+        )}
+      />
+    </div>
+  );
+}
+
+function App() {
+  const isValid = useUserForm((state) => state.isValid);
+  const isDirty = useUserForm((state) => state.isDirty);
+  const handleSubmit = useUserForm((state) => state.handleSubmit);
+  const reset = useUserForm((state) => state.reset);
+
+  const onSubmit = handleSubmit(
+    (values) => {
+      console.log('Form submitted:', values);
       alert('Form submitted! Check console for data.');
-    } else {
-      alert('Please fix validation errors before submitting.');
-    }
-  };
+      // Make the submitted values the new baseline.
+      reset(values);
+    },
+    () => alert('Please fix validation errors before submitting.')
+  );
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1>🌐 Global State Example</h1>
-      <p>Using Zustand global store with withForm enhancement</p>
+      <p>Using a global Zustand store enhanced with withForm</p>
 
       <form
         onSubmit={onSubmit}
         style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
       >
-        <div>
-          <label>Name:</label>
-          <FormController
-            store={useUserForm}
-            name="name"
-            render={({ value, onChange, error }) => (
-              <div>
-                <input
-                  value={value}
-                  onChange={(e) => onChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    borderColor: error ? 'red' : 'gray',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                  }}
-                />
-                {error && (
-                  <div style={{ color: 'red', fontSize: '12px' }}>
-                    {JSON.stringify(error)}
-                  </div>
-                )}
-              </div>
-            )}
-          />
-        </div>
-
-        <div>
-          <label>Email:</label>
-          <FormController
-            store={useUserForm}
-            name="email"
-            render={({ value, onChange, error }) => (
-              <div>
-                <input
-                  type="email"
-                  value={value}
-                  onChange={(e) => onChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    borderColor: error ? 'red' : 'gray',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                  }}
-                />
-                {error && (
-                  <div style={{ color: 'red', fontSize: '12px' }}>
-                    {' '}
-                    {JSON.stringify(error)}
-                  </div>
-                )}
-              </div>
-            )}
-          />
-        </div>
+        <Field name="name" label="Name" />
+        <Field name="email" label="Email" type="email" />
 
         <fieldset style={{ border: '1px solid #ccc', padding: '16px' }}>
           <legend>Address</legend>
-
-          <div style={{ marginBottom: '12px' }}>
-            <label>Street:</label>
-            <FormController
-              store={useUserForm}
-              name="address.street"
-              render={({ value, onChange, error }) => (
-                <div>
-                  <input
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderColor: error ? 'red' : 'gray',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                    }}
-                  />
-                  {error && (
-                    <div style={{ color: 'red', fontSize: '12px' }}>
-                      {JSON.stringify(error)}
-                    </div>
-                  )}
-                </div>
-              )}
-            />
-          </div>
-
-          <div style={{ marginBottom: '12px' }}>
-            <label>City:</label>
-            <FormController
-              store={useUserForm}
-              name="address.city"
-              render={({ value, onChange, error }) => (
-                <div>
-                  <input
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderColor: error ? 'red' : 'gray',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                    }}
-                  />
-                  {error && (
-                    <div style={{ color: 'red', fontSize: '12px' }}>
-                      {JSON.stringify(error)}
-                    </div>
-                  )}
-                </div>
-              )}
-            />
-          </div>
-
-          <div>
-            <label>ZIP:</label>
-            <FormController
-              store={useUserForm}
-              name="address.zip"
-              render={({ value, onChange, error }) => (
-                <div>
-                  <input
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderColor: error ? 'red' : 'gray',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                    }}
-                  />
-                  {error && (
-                    <div style={{ color: 'red', fontSize: '12px' }}>
-                      {JSON.stringify(error)}
-                    </div>
-                  )}
-                </div>
-              )}
-            />
-          </div>
+          <Field name="address.street" label="Street" />
+          <Field name="address.city" label="City" />
+          <Field name="address.zip" label="ZIP" />
         </fieldset>
 
         <div style={{ marginTop: '20px' }}>
@@ -239,6 +144,14 @@ function App() {
             }}
           >
             Submit Form
+          </button>
+          <button
+            type="button"
+            disabled={!isDirty}
+            onClick={() => reset()}
+            style={{ marginLeft: '8px', padding: '12px 24px' }}
+          >
+            Reset
           </button>
         </div>
       </form>

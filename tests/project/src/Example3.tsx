@@ -2,9 +2,8 @@ import { useMemo } from 'react';
 import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import {
-  FormController,
   FormStoreProvider,
-  getDefaultForm,
+  useFormController,
   useFormStore,
   withForm,
 } from 'zustorm';
@@ -14,16 +13,13 @@ type Form = {
   email: string;
 };
 
+// A per-component store shared through context.
 function UserContextForm() {
   const store = useMemo(
     () =>
       createStore(
-        withForm(
-          () =>
-            getDefaultForm<Form>({
-              name: '',
-              email: '',
-            }),
+        withForm<Form>(
+          { name: '', email: '' },
           {
             getSchema: () =>
               z.object({
@@ -36,65 +32,46 @@ function UserContextForm() {
     []
   );
 
-  const isValid = useStore(store, (state) => !state.errors);
-  const isDirty = useStore(store, (state) => state.dirty);
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isValid) {
-      const formData = store.getState().values;
-      console.log('Form submitted:', formData);
-      // Handle form submission logic here
-    } else {
-      console.error('Form is invalid');
-    }
-  };
+  const isValid = useStore(store, (state) => state.isValid);
+  const isDirty = useStore(store, (state) => state.isDirty);
+  const handleSubmit = useStore(store, (state) => state.handleSubmit);
 
   return (
-    <form>
+    <form
+      onSubmit={handleSubmit((values) =>
+        console.log('Form submitted:', values)
+      )}
+    >
       <FormStoreProvider store={store}>
-        <NameField />
-        <EmailField />
+        <Field name="name" placeholder="Name" />
+        <Field name="email" placeholder="Email" />
       </FormStoreProvider>
-      <button disabled={!isValid || !isDirty} onClick={onSubmit}>
+      <button type="submit" disabled={!isValid || !isDirty}>
         Submit
       </button>
     </form>
   );
 }
 
-function NameField() {
+// useFormController is the hook form of FormController.
+function Field({
+  name,
+  placeholder,
+}: {
+  name: keyof Form;
+  placeholder: string;
+}) {
   const store = useFormStore<Form>();
+  const { value, onChange, onBlur, errorMessage, isTouched } =
+    useFormController(store, name);
   return (
-    <FormController
-      store={store}
-      name="name"
-      render={({ value, onChange, error }) => (
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Name"
-          style={{ borderColor: error ? 'red' : 'gray' }}
-        />
-      )}
-    />
-  );
-}
-
-function EmailField() {
-  const store = useFormStore<Form>();
-  return (
-    <FormController
-      store={store}
-      name="email"
-      render={({ value, onChange, error }) => (
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Email"
-          style={{ borderColor: error ? 'red' : 'gray' }}
-        />
-      )}
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      title={isTouched ? errorMessage : undefined}
+      style={{ borderColor: isTouched && errorMessage ? 'red' : 'gray' }}
     />
   );
 }

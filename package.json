@@ -32,13 +32,14 @@
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit && tsc -p tsconfig.tests.json",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.tests.json && tsc -p tsconfig.examples.json",
     "test": "vitest --typecheck",
     "bench": "vitest bench --run",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"tests/*.test-d.ts\" \"bench/**/*.{ts,tsx}\" README.md",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"bench/**/*.{ts,tsx}\" README.md",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"tests/*.test-d.ts\" \"bench/**/*.{ts,tsx}\" \"examples/*/src/*.tsx\" \"tests/project/src/*.tsx\" README.md",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"bench/**/*.{ts,tsx}\" \"examples/*/src/*.tsx\" \"tests/project/src/*.tsx\" README.md",
     "test:coverage": "vitest run --coverage",
-    "test:types": "vitest run --typecheck.only"
+    "test:types": "vitest run --typecheck.only",
+    "type-check:examples": "tsc -p tsconfig.examples.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

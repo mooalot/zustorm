@@ -32,7 +32,7 @@ npm install zustorm zustand zod react
 ```typescript
 import { z } from 'zod';
 import { create } from 'zustand';
-import { withForm, getDefaultForm, FormController } from 'zustorm';
+import { withForm, FormController } from 'zustorm';
 
 type UserForm = {
   name: string;
@@ -40,13 +40,16 @@ type UserForm = {
 };
 
 const useUserForm = create(
-  withForm(() => getDefaultForm<UserForm>({ name: '', email: '' }), {
-    getSchema: () =>
-      z.object({
-        name: z.string().min(1, 'Name required'),
-        email: z.string().email('Invalid email'),
-      }),
-  })
+  withForm<UserForm>(
+    { name: '', email: '' },
+    {
+      getSchema: () =>
+        z.object({
+          name: z.string().min(1, 'Name required'),
+          email: z.string().email('Invalid email'),
+        }),
+    }
+  )
 );
 
 function UserForm() {
@@ -73,8 +76,11 @@ function UserForm() {
       <FormController
         store={useUserForm}
         name="email"
-        render={({ value, onChange, error }) => (
-          <input value={value} onChange={(e) => onChange(e.target.value)} />
+        render={({ value, onChange, errorMessage }) => (
+          <>
+            <input value={value} onChange={(e) => onChange(e.target.value)} />
+            {errorMessage}
+          </>
         )}
       />
       <button disabled={!isValid || !isDirty}>Submit</button>
@@ -82,6 +88,48 @@ function UserForm() {
   );
 }
 ```
+
+### Creating a Store
+
+`withForm` is a Zustand middleware. Give it the initial values and it builds the whole form state for you:
+
+```typescript
+const useUserForm = create(withForm({ name: '', email: '' }, { getSchema }));
+```
+
+To keep other state next to the form, pass a creator instead. It returns `{ values }` plus whatever else you need, and the store type is inferred from it:
+
+```typescript
+const useUserForm = create(
+  withForm(() => ({ values: { name: '', email: '' }, submitCount: 0 }), {
+    getSchema,
+  })
+);
+```
+
+When the creator uses `set` or `get`, or the form lives inside a bigger store, use Zustand's curried `create<State>()` so the store type comes from the annotation, and point `withForm` at the form with `formPath`:
+
+```typescript
+type AppState = {
+  form: FormState<UserForm>;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+};
+
+const useAppStore = create<AppState>()(
+  withForm(
+    (set) => ({
+      form: { values: { name: '', email: '' } },
+      theme: 'light',
+      toggleTheme: () =>
+        set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+    }),
+    { formPath: 'form', getSchema }
+  )
+);
+```
+
+Pass `getFormApi(useAppStore, 'form')` to `FormController` and `FormStoreProvider` to work with the nested form. `getDefaultForm(values)` from earlier versions still works but is deprecated: pass the values to `withForm` instead.
 
 ### Using the Hook
 
@@ -367,11 +415,11 @@ Here is how it is done with the FormController:
 
 | Function                                    | Description                                                          |
 | ------------------------------------------- | -------------------------------------------------------------------- |
-| `withForm(creator, options)`                | Enhances Zustand store with form capabilities                        |
+| `withForm(valuesOrCreator, options?)`       | Zustand middleware that adds form state, flags and actions           |
 | `FormController`                            | Renders form fields with state binding                               |
 | `FormStoreProvider`                         | Provides form store context                                          |
 | `useFormStore()`                            | Access form store from context                                       |
-| `getDefaultForm(values)`                    | Returns `{ values, initialValues }`, optional helper                 |
+| `getDefaultForm(values)`                    | Deprecated, pass the values to `withForm` instead                    |
 | `getFormApi(store, formPath)`               | Access deep form API methods                                         |
 | `getScopedFormApi(store, name)`             | Form store scoped to a field: slices, flags and actions at that path |
 | `createFormStoreProvider()`                 | Creates a FormStoreProvider component and hook                       |

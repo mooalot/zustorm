@@ -11,7 +11,6 @@ import {
   FormControllerRenderProps,
   FormState,
   FormStoreProvider,
-  getDefaultForm,
   getFormApi,
   getScopedFormApi,
   resetDirty,
@@ -33,11 +32,7 @@ export const createFormStore = <T extends object>(
     getSchema?: (state: FormState<T>) => ZodType<T>;
   }
 ) => {
-  return createStore<FormState<T>>()(
-    withForm(() => getDefaultForm(initialValue), {
-      getSchema: options?.getSchema,
-    })
-  );
+  return createStore(withForm(initialValue, { getSchema: options?.getSchema }));
 };
 
 describe('form reset helpers', () => {
@@ -198,7 +193,7 @@ describe('form reset helpers', () => {
     }>()(
       withForm(
         () => ({
-          form: getDefaultForm({ name: 'Initial' }),
+          form: { values: { name: 'Initial' } },
           counter: 0,
           reset: () => {
             calls++;
@@ -225,16 +220,13 @@ describe('form reset helpers', () => {
       form: FormState<{ name: string }>;
       strict: boolean;
     }>()(
-      withForm(
-        () => ({ form: getDefaultForm({ name: 'ab' }), strict: false }),
-        {
-          formPath: 'form',
-          getSchema: (state) =>
-            z.object({
-              name: z.string().min(state.strict ? 5 : 1, 'Too short'),
-            }),
-        }
-      )
+      withForm(() => ({ form: { values: { name: 'ab' } }, strict: false }), {
+        formPath: 'form',
+        getSchema: (state) =>
+          z.object({
+            name: z.string().min(state.strict ? 5 : 1, 'Too short'),
+          }),
+      })
     );
     expect(store.getState().form.errors).toBeUndefined();
 
@@ -468,7 +460,7 @@ describe('form.utils', () => {
 
   it('should return default form structure', () => {
     const defaultValues = { name: 'Test' };
-    const form = getDefaultForm(defaultValues);
+    const form = { values: defaultValues };
 
     expect(form.values).toEqual(defaultValues);
   });
@@ -478,7 +470,7 @@ describe('form.utils', () => {
     const plainStore = createStore(
       withForm(
         () => ({
-          form: getDefaultForm(defaultValues),
+          form: { values: defaultValues },
         }),
         {
           formPath: 'form',
@@ -520,7 +512,7 @@ describe('form.utils', () => {
     const plainStore = createStore(
       withForm(
         () => ({
-          form: getDefaultForm(defaultValues),
+          form: { values: defaultValues },
         }),
         {
           formPath: 'form',
@@ -569,7 +561,7 @@ describe('form.utils', () => {
     const plainStore = createStore(
       withForm(
         () => ({
-          form: getDefaultForm(defaultValues),
+          form: { values: defaultValues },
         }),
         {
           formPath: 'form',
@@ -1367,10 +1359,11 @@ describe('form state integration', () => {
 
     const useFriendsForm = create<FormState<FriendsForm>>()(
       withForm(
-        () =>
-          getDefaultForm<FriendsForm>({
+        () => ({
+          values: {
             friends: [{ name: '', age: 0, email: '' }],
-          }),
+          },
+        }),
         {
           getSchema: () =>
             z.object({
@@ -2034,7 +2027,7 @@ describe('getformapi', () => {
     }>()(
       withForm(
         () => ({
-          form: getDefaultForm({ user: { name: 'bob', age: 0 } }),
+          form: { values: { user: { name: 'bob', age: 0 } } },
         }),
         {
           formPath: 'form',
@@ -2104,10 +2097,12 @@ describe('should allow formPath in creation of form store', () => {
             isSignUp: false,
             isLoading: false,
             error: '',
-            form: getDefaultForm({
-              email: '',
-              password: '',
-            }),
+            form: {
+              values: {
+                email: '',
+                password: '',
+              },
+            },
           }),
           {
             formPath: 'form',

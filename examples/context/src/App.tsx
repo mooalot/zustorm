@@ -2,11 +2,11 @@ import { useMemo } from 'react';
 import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import {
-  FormStoreProvider,
   FormController,
+  FormStoreProvider,
+  useFormController,
   useFormStore,
   withForm,
-  getDefaultForm,
 } from 'zustorm';
 
 type UserForm = {
@@ -19,33 +19,32 @@ type UserForm = {
   };
 };
 
+const schema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email'),
+  address: z.object({
+    street: z.string().min(1, 'Street is required'),
+    city: z.string().min(1, 'City is required'),
+    zip: z.string().min(1, 'ZIP is required'),
+  }),
+});
+
 function App() {
+  // One store per mounted form, handed down through context.
   const store = useMemo(
     () =>
       createStore(
-        withForm(
-          () =>
-            getDefaultForm<UserForm>({
-              name: 'John Doe',
-              email: 'john@example.com',
-              address: {
-                street: '123 Main St',
-                city: 'Anytown',
-                zip: '12345',
-              },
-            }),
+        withForm<UserForm>(
           {
-            getSchema: () =>
-              z.object({
-                name: z.string().min(1, 'Name is required'),
-                email: z.string().email('Invalid email'),
-                address: z.object({
-                  street: z.string().min(1, 'Street is required'),
-                  city: z.string().min(1, 'City is required'),
-                  zip: z.string().min(1, 'ZIP is required'),
-                }),
-              }),
-          }
+            name: 'John Doe',
+            email: 'john@example.com',
+            address: {
+              street: '123 Main St',
+              city: 'Anytown',
+              zip: '12345',
+            },
+          },
+          { getSchema: () => schema }
         )
       ),
     []
@@ -60,22 +59,17 @@ function App() {
 
 function UserForm() {
   const store = useFormStore<UserForm>();
-  const isValid = useStore(store, (state) => !state.errors);
-  const isDirty = useStore(
-    store,
-    (state) => state.dirty && Object.keys(state.dirty).length > 0
-  );
+  const isValid = useStore(store, (state) => state.isValid);
+  const isDirty = useStore(store, (state) => state.isDirty);
+  const handleSubmit = useStore(store, (state) => state.handleSubmit);
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isValid) {
-      const formData = store.getState().values;
-      console.log('Form submitted:', formData);
+  const onSubmit = handleSubmit(
+    (values) => {
+      console.log('Form submitted:', values);
       alert('Form submitted! Check console for data.');
-    } else {
-      alert('Please fix validation errors before submitting.');
-    }
-  };
+    },
+    () => alert('Please fix validation errors before submitting.')
+  );
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
@@ -125,40 +119,34 @@ function UserForm() {
   );
 }
 
+const inputStyle = (invalid: boolean): React.CSSProperties => ({
+  width: '100%',
+  padding: '8px',
+  border: `1px solid ${invalid ? 'red' : 'gray'}`,
+});
+
+// The hook form: the same data FormController's render prop receives.
 function NameField() {
   const store = useFormStore<UserForm>();
+  const { value, onChange, onBlur, errorMessage, isTouched } =
+    useFormController(store, 'name');
   return (
     <div>
       <label>Name:</label>
-      <FormController
-        store={store}
-        name="name"
-        render={({ value, onChange, error }) => (
-          <div>
-            <input
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderColor: error ? 'red' : 'gray',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-              }}
-            />
-            {error && (
-              <div style={{ color: 'red', fontSize: '12px' }}>
-                {' '}
-                {JSON.stringify(error)}
-              </div>
-            )}
-          </div>
-        )}
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        style={inputStyle(isTouched && !!errorMessage)}
       />
+      {isTouched && errorMessage && (
+        <div style={{ color: 'red', fontSize: '12px' }}>{errorMessage}</div>
+      )}
     </div>
   );
 }
 
+// The render-prop form, with contextSelector reading another field.
 function EmailField() {
   const store = useFormStore<UserForm>();
   return (
@@ -167,24 +155,27 @@ function EmailField() {
       <FormController
         store={store}
         name="email"
-        render={({ value, onChange, error }) => (
+        contextSelector={(values) => values.name}
+        render={({
+          value,
+          onChange,
+          onBlur,
+          errorMessage,
+          isTouched,
+          context,
+        }) => (
           <div>
             <input
               type="email"
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderColor: error ? 'red' : 'gray',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-              }}
+              onBlur={onBlur}
+              placeholder={`Email for ${context}`}
+              style={inputStyle(isTouched && !!errorMessage)}
             />
-            {error && (
+            {isTouched && errorMessage && (
               <div style={{ color: 'red', fontSize: '12px' }}>
-                {' '}
-                {JSON.stringify(error)}
+                {errorMessage}
               </div>
             )}
           </div>
@@ -194,99 +185,52 @@ function EmailField() {
   );
 }
 
+// A nested provider scopes the whole subtree to `address`.
 function AddressFields() {
   const store = useFormStore<UserForm>();
   return (
-    <fieldset style={{ border: '1px solid #ccc', padding: '16px' }}>
-      <legend>Address</legend>
+    <FormStoreProvider store={store} options={{ name: 'address' }}>
+      <fieldset style={{ border: '1px solid #ccc', padding: '16px' }}>
+        <legend>Address</legend>
+        <AddressField name="street" label="Street" />
+        <AddressField name="city" label="City" />
+        <AddressField name="zip" label="ZIP" />
+      </fieldset>
+    </FormStoreProvider>
+  );
+}
 
-      <div style={{ marginBottom: '12px' }}>
-        <label>Street:</label>
-        <FormController
-          store={store}
-          name="address.street"
-          render={({ value, onChange, error }) => (
-            <div>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderColor: error ? 'red' : 'gray',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                }}
-              />
-              {error && (
-                <div style={{ color: 'red', fontSize: '12px' }}>
-                  {' '}
-                  {JSON.stringify(error)}
-                </div>
-              )}
-            </div>
-          )}
-        />
-      </div>
-
-      <div style={{ marginBottom: '12px' }}>
-        <label>City:</label>
-        <FormController
-          store={store}
-          name="address.city"
-          render={({ value, onChange, error }) => (
-            <div>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderColor: error ? 'red' : 'gray',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                }}
-              />
-              {error && (
-                <div style={{ color: 'red', fontSize: '12px' }}>
-                  {' '}
-                  {JSON.stringify(error)}
-                </div>
-              )}
-            </div>
-          )}
-        />
-      </div>
-
-      <div>
-        <label>ZIP:</label>
-        <FormController
-          store={store}
-          name="address.zip"
-          render={({ value, onChange, error }) => (
-            <div>
-              <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderColor: error ? 'red' : 'gray',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                }}
-              />
-              {error && (
-                <div style={{ color: 'red', fontSize: '12px' }}>
-                  {' '}
-                  {JSON.stringify(error)}
-                </div>
-              )}
-            </div>
-          )}
-        />
-      </div>
-    </fieldset>
+function AddressField({
+  name,
+  label,
+}: {
+  name: 'street' | 'city' | 'zip';
+  label: string;
+}) {
+  const store = useFormStore<UserForm['address']>();
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <label>{label}:</label>
+      <FormController
+        store={store}
+        name={name}
+        render={({ value, onChange, onBlur, errorMessage, isTouched }) => (
+          <div>
+            <input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onBlur}
+              style={inputStyle(isTouched && !!errorMessage)}
+            />
+            {isTouched && errorMessage && (
+              <div style={{ color: 'red', fontSize: '12px' }}>
+                {errorMessage}
+              </div>
+            )}
+          </div>
+        )}
+      />
+    </div>
   );
 }
 

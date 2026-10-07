@@ -1,8 +1,8 @@
+import { z } from 'zod';
 import { create } from 'zustand';
 import {
   FormController,
   FormStoreProvider,
-  getDefaultForm,
   getFormApi,
   useFormStore,
   withForm,
@@ -18,21 +18,29 @@ export type Form = {
   address: { street: string; city: string; zip: string };
 } & Person;
 
-import z from 'zod';
-
+// The form lives inside a bigger app store, next to unrelated state and
+// actions. The store type comes from `create<State>()`, and `formPath` tells
+// withForm where the form is. `set` and `get` are fully typed.
 type State = {
   form: FormState<Form>;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
 };
 
 const useAppStore = create<State>()(
   withForm(
-    () => ({
-      form: getDefaultForm<Form>({
-        friends: [],
-        address: { street: '', city: '', zip: '' },
-        name: 'bob',
-        email: 'bob@example.com',
-      }),
+    (set) => ({
+      form: {
+        values: {
+          friends: [],
+          address: { street: '', city: '', zip: '' },
+          name: 'bob',
+          email: 'bob@example.com',
+        },
+      },
+      theme: 'light',
+      toggleTheme: () =>
+        set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
     }),
     {
       formPath: 'form',
@@ -56,171 +64,146 @@ const useAppStore = create<State>()(
   )
 );
 
+// A store api for just the form, usable anywhere a form store is expected.
+const formStore = getFormApi(useAppStore, 'form');
+
 export function Example4() {
+  const theme = useAppStore((state) => state.theme);
+  const toggleTheme = useAppStore((state) => state.toggleTheme);
+
   return (
-    <FormStoreProvider store={getFormApi(useAppStore, 'form')}>
-        <button onClick={() => {
-          const formApi = getFormApi(useAppStore, 'form');
-          formApi.setState((state) => ({...state, values: {
-            friends: [],
-            address: { street: '', city: '', zip: '' },
-            name: 'billy',
-            email: 'billy@example.com',
-            }}))
+    <FormStoreProvider store={formStore}>
+      <div
+        style={{
+          background: theme === 'dark' ? '#222' : 'white',
+          color: theme === 'dark' ? 'white' : 'black',
+          padding: 16,
+        }}
+      >
+        <button type="button" onClick={toggleTheme}>
+          Theme: {theme}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            // reset(values) loads new values and makes them the baseline.
+            formStore.getState().reset({
+              friends: [],
+              address: { street: '', city: '', zip: '' },
+              name: 'billy',
+              email: 'billy@example.com',
+            });
             console.log(useAppStore.getState().form.values);
-        }}>Set Name to Billy</button>
-      <h1>Example 4: Complex Form with Nested Fields and Arrays</h1>
-      <FormComponent />
+          }}
+        >
+          Load Billy
+        </button>
+        <h1>Example 4: Form inside an app store</h1>
+        <FormComponent />
+      </div>
     </FormStoreProvider>
   );
 }
 
+function TextField({
+  name,
+  label,
+}: {
+  name: 'name' | 'email' | 'address.street' | 'address.city' | 'address.zip';
+  label: string;
+}) {
+  const store = useFormStore<Form>();
+  return (
+    <FormController
+      store={store}
+      name={name}
+      render={({ value, onChange, onBlur, errorMessage, isTouched }) => (
+        <div>
+          <label>
+            {label}:
+            <input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onBlur}
+            />
+          </label>
+          {isTouched && errorMessage && (
+            <span style={{ color: 'red' }}>{errorMessage}</span>
+          )}
+        </div>
+      )}
+    />
+  );
+}
+
 function FormComponent() {
-  const useForm = useFormStore<Form>();
+  const store = useFormStore<Form>();
   return (
     <>
-      <FormController
-        store={useForm}
-        name="name"
-        render={(props) => (
-          <div>
-            <label>
-              Name:
-              <input
-                value={props.value}
-                onChange={(e) => {
-                  props.onChange(e.target.value);
-                }}
-              />
-            </label>
-            {props.error && (
-              <span style={{ color: 'red' }}>{props.error._errors?.[0]}</span>
-            )}
-          </div>
-        )}
-      />
-      <FormController
-        store={useForm}
-        name="email"
-        render={(props) => (
-          <div>
-            <label>
-              Email:
-              <input
-                value={props.value}
-                onChange={(e) => props.onChange(e.target.value)}
-              />
-            </label>
-          </div>
-        )}
-      />
+      <TextField name="name" label="Name" />
+      <TextField name="email" label="Email" />
       <h2>Address</h2>
-      <FormController
-        store={useForm}
-        name="address.street"
-        render={(props) => (
-          <div>
-            <label>
-              Street:
-              <input
-                value={props.value}
-                onChange={(e) => props.onChange(e.target.value)}
-              />
-            </label>
-          </div>
-        )}
-      />
-      <FormController
-        store={useForm}
-        name="address.city"
-        render={(props) => (
-          <div>
-            <label>
-              City:
-              <input
-                value={props.value}
-                onChange={(e) => props.onChange(e.target.value)}
-              />
-            </label>
-          </div>
-        )}
-      />
-      <FormController
-        store={useForm}
-        name="address.zip"
-        render={(props) => (
-          <div>
-            <label>
-              ZIP:
-              <input
-                value={props.value}
-                onChange={(e) => props.onChange(e.target.value)}
-              />
-            </label>
-          </div>
-        )}
-      />
+      <TextField name="address.street" label="Street" />
+      <TextField name="address.city" label="City" />
+      <TextField name="address.zip" label="ZIP" />
       <h2>Friends</h2>
       <FormController
-        store={useForm}
+        store={store}
         name="friends"
-        render={(props) => (
+        render={({ value: friends, onChange }) => (
           <div>
-            {props.value.map((_, index) => (
+            {friends.map((_, index) => (
               <div
                 key={index}
-                style={{ border: '1px solid black', marginBottom: 10 }}
+                style={{ border: '1px solid gray', marginBottom: 10 }}
               >
                 <FormController
-                  store={useForm}
+                  store={store}
                   name={`friends.${index}.name`}
-                  render={(friendNameProps) => (
+                  render={(field) => (
                     <div>
                       <label>
                         Name:
                         <input
-                          value={friendNameProps.value}
-                          onChange={(e) =>
-                            friendNameProps.onChange(e.target.value)
-                          }
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onBlur={field.onBlur}
                         />
                       </label>
+                      {field.isTouched && field.errorMessage}
                     </div>
                   )}
                 />
                 <FormController
-                  store={useForm}
+                  store={store}
                   name={`friends.${index}.email`}
-                  render={(friendEmailProps) => (
+                  render={(field) => (
                     <div>
                       <label>
                         Email:
                         <input
-                          value={friendEmailProps.value}
-                          onChange={(e) =>
-                            friendEmailProps.onChange(e.target.value)
-                          }
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          onBlur={field.onBlur}
                         />
                       </label>
+                      {field.isTouched && field.errorMessage}
                     </div>
                   )}
                 />
                 <button
-                  onClick={() => {
-                    const newFriends = props.value.filter(
-                      (_, i) => i !== index
-                    );
-                    props.onChange(newFriends);
-                  }}
+                  type="button"
+                  onClick={() =>
+                    onChange(friends.filter((_, i) => i !== index))
+                  }
                 >
                   Remove Friend
                 </button>
               </div>
             ))}
             <button
-              onClick={() =>
-                props.onChange([...props.value, { name: '', email: '' }])
-              }
+              type="button"
+              onClick={() => onChange([...friends, { name: '', email: '' }])}
             >
               Add Friend
             </button>

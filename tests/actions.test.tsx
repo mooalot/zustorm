@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import {
-  createFormStore,
   FormController,
   FormState,
   FormStoreProvider,
@@ -45,14 +44,15 @@ const validProfile: Profile = {
 };
 
 function createProfileStore(values: Profile = validProfile) {
-  return createStore<FormState<Profile>>()(
-    withForm(() => getDefaultForm(values), { getSchema: () => profileSchema })
-  );
+  return createStore(withForm(values, { getSchema: () => profileSchema }));
 }
 
 describe('initialValues baseline', () => {
-  it('getDefaultForm and withForm record the initial values', () => {
+  it('withForm records the initial values (getDefaultForm is a deprecated shortcut)', () => {
     expect(getDefaultForm({ a: 1 }).initialValues).toEqual({ a: 1 });
+    expect(createStore(withForm({ a: 1 })).getState().initialValues).toEqual({
+      a: 1,
+    });
 
     const store = createStore<FormState<{ a: number }>>()(
       withForm(() => ({ values: { a: 2 } }) as FormState<{ a: number }>, {})
@@ -97,7 +97,7 @@ describe('initialValues baseline', () => {
 
   it('exposes the moving baseline through the formPath store', () => {
     const store = createStore<{ form: FormState<{ a: number }>; n: number }>()(
-      withForm(() => ({ form: getDefaultForm({ a: 1 }), n: 0 }), {
+      withForm(() => ({ form: { values: { a: 1 } }, n: 0 }), {
         formPath: 'form',
       })
     );
@@ -266,7 +266,7 @@ describe('touchAll', () => {
 
   it('works on a formPath store', () => {
     const store = createStore<{ form: FormState<{ a: { b: number } }> }>()(
-      withForm(() => ({ form: getDefaultForm({ a: { b: 1 } }) }), {
+      withForm(() => ({ form: { values: { a: { b: 1 } } } }), {
         formPath: 'form',
       })
     );
@@ -331,7 +331,7 @@ describe('validate', () => {
       form: FormState<{ n: number }>;
       max: number;
     }>()(
-      withForm(() => ({ form: getDefaultForm({ n: 5 }), max: 10 }), {
+      withForm(() => ({ form: { values: { n: 5 } }, max: 10 }), {
         formPath: 'form',
         getSchema: (state) => z.object({ n: z.number().max(state.max) }),
       })
@@ -760,7 +760,7 @@ describe('regressions: computed state', () => {
       form: FormState<{ n: number }>;
       counter: number;
     }>()(
-      withForm(() => ({ form: getDefaultForm({ n: 1 }), counter: 0 }), {
+      withForm(() => ({ form: { values: { n: 1 } }, counter: 0 }), {
         formPath: 'form',
         getSchema: () => {
           schemaCalls++;
@@ -821,18 +821,6 @@ describe('regressions: subscriptions', () => {
 });
 
 describe('remaining surface', () => {
-  it('createFormStore (deprecated) builds a validating form store', () => {
-    const store = createFormStore(
-      { name: '' },
-      { getSchema: () => z.object({ name: z.string().min(1, 'Required') }) }
-    );
-    expect(store.getState().isValid).toBe(false);
-    store.setState({ values: { name: 'ok' } });
-    expect(store.getState().isValid).toBe(true);
-    expect(typeof store.getState().reset).toBe('function');
-    expect(createFormStore({ a: 1 }).getState().errors).toBeUndefined();
-  });
-
   it('a scoped api exposes the initial slice with actions', () => {
     const store = createProfileStore();
     const scoped = getScopedFormApi(store, 'user.name');

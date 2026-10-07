@@ -3,7 +3,6 @@ export {
   type WithFormOptions,
   type WithFormAtOptions,
   getDefaultForm,
-  createFormStore,
   resetForm,
   resetTouched,
   resetDirty,

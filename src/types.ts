@@ -355,8 +355,15 @@ export type FormInput<T> = BaseFormState<T>;
 
 type ValuesOf<F> = F extends { values: infer T } ? T : never;
 
-/** The store state `withForm` produces for a form object F: F plus flags and actions. */
-export type EnhancedForm<F> = F & FormComputed & FormActions<ValuesOf<F>>;
+/**
+ * The store state `withForm` produces for a form object F: F plus the form
+ * data it writes (`initialValues`, `errors`, `touched`, `dirty`), the derived
+ * flags and the actions.
+ */
+export type EnhancedForm<F> = F &
+  BaseFormState<ValuesOf<F>> &
+  FormComputed &
+  FormActions<ValuesOf<F>>;
 
 /** T with the property at K replaced by V, keeping every other property and its modifiers. */
 type ReplaceKey<T, K, V> = { [P in keyof T]: P extends K ? V : T[P] };

@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm, useFormState, Control } from 'react-hook-form';
 import { z } from 'zod';
 import { createStore, StoreApi, useStore } from 'zustand';
-import { FormController, FormState, getDefaultForm, withForm } from '../src';
+import { FormController, FormState, withForm } from '../src';
 
 export type Values = Record<string, string>;
 
@@ -45,10 +45,8 @@ export function resetRenders() {
 
 export function createZustormStore(n: number, validate: boolean) {
   const schema = validate ? makeSchema(n) : undefined;
-  return createStore<FormState<Values>>()(
-    withForm(() => getDefaultForm(makeValues(n)), {
-      getSchema: schema ? () => schema : undefined,
-    })
+  return createStore(
+    withForm(makeValues(n), { getSchema: schema ? () => schema : undefined })
   );
 }
 
