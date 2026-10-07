@@ -34,6 +34,8 @@
 
 ### Changed
 
+- The CommonJS build is now `dist/index.cjs` with its own `index.d.cts`, replacing a UMD file that Node loaded as an ES module (the package is `"type": "module"`), which left `require('zustorm')` empty and broke `moduleResolution: node16` for CommonJS projects.
+
 - Updates are immutable and structurally shared; `immer` and `lodash-es` are no longer bundled. The package is about 6 kB gzipped.
 - Each controller holds a single store subscription and re-renders only when its own slice changes. A header reading `isValid` and `isDirty` re-renders only when a flag flips.
 - `isValid` and `errors` stay consistent after `resetErrors` and `validate`.

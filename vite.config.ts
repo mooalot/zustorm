@@ -13,20 +13,14 @@ export default defineConfig({
   build: {
     outDir: 'dist', // Output directory for build files
     lib: {
-      name: 'zustorm', // Library name
-      entry: 'src/index.ts', // Entry point for your library
-      fileName: (format) => `index.${format}.js`, // Output file naming pattern
+      entry: 'src/index.ts',
+      // The package is "type": "module", so the CommonJS build needs the .cjs
+      // extension for Node to load it as CommonJS.
+      formats: ['es', 'cjs'],
+      fileName: (format) => (format === 'es' ? 'index.es.js' : 'index.cjs'),
     },
     rollupOptions: {
-      external: ['react', 'zustand', 'zod', 'react/jsx-runtime'], // External dependencies
-      output: {
-        globals: {
-          react: 'React',
-          zustand: 'Zustand',
-          zod: 'Zod',
-          'react/jsx-runtime': 'jsxRuntime',
-        },
-      },
+      external: ['react', 'zustand', 'react/jsx-runtime'],
     },
   },
 
