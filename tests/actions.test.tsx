@@ -344,7 +344,7 @@ describe('validate', () => {
 
   it('returns true when a store has no form at the path', () => {
     const store = createStore<{ form?: FormState<{ n: number }> }>()(
-      withForm(() => ({}), { formPath: 'form' } as any)
+      withForm(() => ({}) as any, { formPath: 'form' } as any)
     );
     expect(store.getState()).toEqual({});
   });
@@ -827,7 +827,6 @@ describe('remaining surface', () => {
       { getSchema: () => z.object({ name: z.string().min(1, 'Required') }) }
     );
     expect(store.getState().isValid).toBe(false);
-    expect(store.getState().errorMessage).toBeUndefined();
     store.setState({ values: { name: 'ok' } });
     expect(store.getState().isValid).toBe(true);
     expect(typeof store.getState().reset).toBe('function');

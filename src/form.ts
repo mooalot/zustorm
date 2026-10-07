@@ -28,12 +28,16 @@ import {
   BaseFormState,
   DeepKeys,
   DeepValue,
+  EnhancedForm,
   Errors,
   FormActions,
   FormComputed,
+  FormInput,
+  FormInputOf,
   FormState,
   ResetOptions,
   SubmitHandler,
+  WithFormState,
 } from './types';
 
 /** Derives the `isDirty`, `isTouched` and `isValid` flags from form data. */
@@ -93,56 +97,121 @@ function changedOutsideForm(
   return false;
 }
 
-type WithFormOptions<T, K> =
-  T extends FormState<any>
-    ? {
-        formPath?: K;
-        getSchema?: (
-          state: T
-        ) => ZodType<T extends FormState<infer U> ? U : never>;
-      }
-    : K extends DeepKeys<T>
-      ? {
-          formPath: K;
-          getSchema?: (
-            state: T
-          ) => ZodType<DeepValue<T, K> extends FormState<infer U> ? U : never>;
-        }
-      : never;
+type Mutators = [StoreMutatorIdentifier, unknown][];
+type ValuesOf<F> = F extends { values: infer T } ? T : never;
+type ValuesAt<S, K> = [K] extends [undefined]
+  ? ValuesOf<S>
+  : ValuesOf<DeepValue<S, Extract<K, DeepKeys<S>>>>;
 
 /**
- * A higher-order function that enhances a Zustand store creator with form management capabilities.
- * Automatically adds form validation, error handling, and state computation to your store.
- *
- * @param creator - The Zustand store creator function
- * @param options - Configuration options including formPath and schema validation
- * @param options.formPath - The path to the form within the store (required when store state is not directly a FormState)
- * @param options.getSchema - Function to get the Zod schema for form validation
- * @returns An enhanced store creator with form management
+ * The context-driven overload infers the store type from the contextual type
+ * alone (`create<Store>()(withForm(...))`). Without a context the type
+ * parameter falls back to its constraint `object`; this guard then turns the
+ * creator's expected return into `never` so the inferring overloads get their
+ * turn.
  */
-export const withForm = <
-  T extends object,
-  const K extends DeepKeys<T> | undefined = undefined,
-  Mps extends [StoreMutatorIdentifier, unknown][] = [],
-  Mcs extends [StoreMutatorIdentifier, unknown][] = [],
-  S extends object = T,
->(
-  creator: StateCreator<T, [...Mps], Mcs>,
-  options: WithFormOptions<T, K>
-): StateCreator<S, Mps, [...Mcs]> => {
-  const { formPath, getSchema } = (options || {}) as {
-    formPath?: DeepKeys<any>;
-    getSchema?: (state: S) => ZodType<any> | undefined;
-  };
-  return createFormEnhancer<S>(
-    formPath,
-    getSchema
-  )(creator as unknown as StateCreator<S, any, any>) as StateCreator<
-    S,
-    Mps,
-    [...Mcs]
-  >;
+type Inferred<S> = object extends S ? never : unknown;
+
+/**
+ * Rejects a function where initial values are expected. Done structurally so
+ * the check happens before contextual typing, which keeps this overload from
+ * fixing a creator's `set`/`get` parameters while the others are being tried.
+ */
+type NotAFunction = { call?: never; apply?: never; bind?: never };
+
+/** `formPath` is optional only when the store itself is the form. */
+type FormPathOption<S, K> =
+  S extends FormActions<any> ? { formPath?: K } : { formPath: K };
+
+/** `withForm` options for a store that is itself the form. */
+export type WithFormOptions<S, T> = {
+  /** Returns the Zod schema to validate the values with. Receives the whole store state. */
+  getSchema?: (state: S) => ZodType<T> | undefined;
 };
+
+/** `withForm` options for a form living at `formPath` inside a larger store. */
+export type WithFormAtOptions<S, T, K> = WithFormOptions<S, T> & {
+  /** The path to the form within the store. */
+  formPath: K;
+};
+
+/**
+ * Enhances a Zustand store creator with form management: validation, touched
+ * and dirty tracking, derived flags and the form actions.
+ *
+ * Three ways to call it:
+ * - `withForm(initialValues, options?)` for a store that is the form.
+ * - `withForm(() => ({ values }), options?)` with a creator returning the form
+ *   data (`values`, and optionally `initialValues`, `errors`, `touched`,
+ *   `dirty`) plus anything else you want on the store.
+ * - `withForm(() => ({ form: { values }, ...rest }), { formPath: 'form' })`
+ *   for a form nested inside a larger store.
+ *
+ * The creator returns the plain form data; the resulting store state carries
+ * the flags and actions, typed as `FormState`. A creator that uses `set` or
+ * `get` needs the store type declared up front, `create<State>()(withForm(...))`,
+ * the same rule Zustand applies to its own middleware; `set` and `get` then
+ * see the enhanced state.
+ */
+// Store type known from context (curried `create<State>()`), form at the root or at `formPath`.
+export function withForm<
+  S extends object,
+  K extends DeepKeys<S> | undefined = undefined,
+  Mps extends Mutators = [],
+  Mcs extends Mutators = [],
+>(
+  creator: StateCreator<
+    S,
+    [...Mps],
+    Mcs,
+    FormInputOf<NoInfer<S>> & Inferred<NoInfer<S>>
+  >,
+  options?: WithFormOptions<S, ValuesAt<S, K>> & FormPathOption<S, K>
+): StateCreator<S, Mps, [...Mcs]>;
+// Store type inferred from a creator returning the form data at the root.
+export function withForm<
+  I extends BaseFormState<any>,
+  Mps extends Mutators = [],
+  Mcs extends Mutators = [],
+>(
+  creator: StateCreator<EnhancedForm<I>, [...Mps], Mcs, I>,
+  options?: WithFormOptions<EnhancedForm<I>, I['values']>
+): StateCreator<EnhancedForm<I>, Mps, [...Mcs]>;
+// Store type inferred from a creator with the form data at `formPath`.
+export function withForm<
+  I extends object,
+  const K extends DeepKeys<I>,
+  Mps extends Mutators = [],
+  Mcs extends Mutators = [],
+>(
+  creator: StateCreator<WithFormState<I, K>, [...Mps], Mcs, I>,
+  options: WithFormAtOptions<WithFormState<I, K>, ValuesOf<DeepValue<I, K>>, K>
+): StateCreator<WithFormState<I, K>, Mps, [...Mcs]>;
+// Initial values instead of a creator.
+export function withForm<
+  T extends object,
+  Mps extends Mutators = [],
+  Mcs extends Mutators = [],
+>(
+  initialValues: T & NotAFunction,
+  options?: WithFormOptions<FormState<T>, T>
+): StateCreator<FormState<T>, Mps, [...Mcs]>;
+export function withForm(
+  creatorOrValues: StateCreator<any, any, any> | object,
+  options?: {
+    formPath?: DeepKeys<any>;
+    getSchema?: (state: any) => ZodType<any> | undefined;
+  }
+): StateCreator<any, any, any> {
+  const creator: StateCreator<any, any, any> =
+    typeof creatorOrValues === 'function'
+      ? (creatorOrValues as StateCreator<any, any, any>)
+      : () => getDefaultForm(creatorOrValues);
+  return createFormEnhancer<any>(
+    options?.formPath,
+    options?.getSchema
+  )(creator);
+}
 
 function createFormEnhancer<S extends object>(
   formPath: DeepKeys<any> | undefined,
@@ -301,8 +370,8 @@ function createFormEnhancer<S extends object>(
  * @param values - The initial values for the form
  * @returns A FormState object with default properties
  */
-export function getDefaultForm<T extends object>(values: T): FormState<T> {
-  return { values, initialValues: values } as FormState<T>;
+export function getDefaultForm<T extends object>(values: T): FormInput<T> {
+  return { values, initialValues: values };
 }
 
 /**

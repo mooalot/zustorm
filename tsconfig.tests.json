@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "types": [
+      "vitest/globals"
+    ]
+  },
+  "include": [
+    "src",
+    "tests/*.ts",
+    "tests/*.tsx",
+    "bench"
+  ]
+}

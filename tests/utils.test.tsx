@@ -305,18 +305,18 @@ describe('getScopedApi', () => {
 
 describe('getScopedFormState', () => {
   it('should return a scoped form state with the correct type', () => {
-    const formState: FormState<{ test: { value: string } }> = {
+    const formState = {
       values: { test: { value: 'initial' } },
-    };
+    } as FormState<{ test: { value: string } }>;
 
     const scopedState = getScopedFormState(formState, 'test');
     expect(scopedState.values.value).toBe('initial');
   });
 
   it('should return a scoped form state with path as array of strings', () => {
-    const formState: FormState<{ test: { value: string } }> = {
+    const formState = {
       values: { test: { value: 'initial' } },
-    };
+    } as FormState<{ test: { value: string } }>;
 
     const scopedState = getScopedFormState(formState, ['test'] as const);
     expect(scopedState.values.value).toBe('initial');
@@ -326,10 +326,11 @@ describe('getScopedFormState', () => {
 describe('getScopedFormApi', () => {
   it('should return a scoped form API with the correct type', () => {
     const formStore = createStore<FormState<{ test: { value: string } }>>(
-      () => ({
-        values: { test: { value: 'initial' } },
-        errors: undefined,
-      })
+      () =>
+        ({
+          values: { test: { value: 'initial' } },
+          errors: undefined,
+        }) as FormState<{ test: { value: string } }>
     );
 
     const scopedApi = getScopedFormApi(formStore, 'test');
@@ -340,10 +341,11 @@ describe('getScopedFormApi', () => {
 
   it('should return a scoped form API with path as array of strings', () => {
     const formStore = createStore<FormState<{ test: { value: string } }>>(
-      () => ({
-        values: { test: { value: 'initial' } },
-        errors: undefined,
-      })
+      () =>
+        ({
+          values: { test: { value: 'initial' } },
+          errors: undefined,
+        }) as FormState<{ test: { value: string } }>
     );
 
     const scopedApi = getScopedFormApi(formStore, ['test'] as const);
@@ -354,10 +356,11 @@ describe('getScopedFormApi', () => {
 
   it('nested scoped variables should be reflected in scoped form API', () => {
     const formStore = createStore<FormState<{ test: { value: string } }>>(
-      () => ({
-        values: { test: { value: 'initial' } },
-        errors: undefined,
-      })
+      () =>
+        ({
+          values: { test: { value: 'initial' } },
+          errors: undefined,
+        }) as FormState<{ test: { value: string } }>
     );
 
     const scopedApi = getScopedFormApi(formStore, 'test');
@@ -372,10 +375,11 @@ describe('getScopedFormApi', () => {
 
   it('setting a value in the scoped form API should update the original store', () => {
     const formStore = createStore<FormState<{ test: { value: string } }>>(
-      () => ({
-        values: { test: { value: 'initial' } },
-        errors: undefined,
-      })
+      () =>
+        ({
+          values: { test: { value: 'initial' } },
+          errors: undefined,
+        }) as FormState<{ test: { value: string } }>
     );
 
     const scopedApi = getScopedFormApi(formStore, 'test');

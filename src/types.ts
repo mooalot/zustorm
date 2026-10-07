@@ -2,51 +2,81 @@ import { StoreApi } from 'zustand';
 
 export type AnyFunction = (...args: any[]) => any;
 
-// Dot-notation string paths
-export type DeepKeyStrings<T> = T extends AnyFunction
+/**
+ * Values that paths never descend into. They are addressed as a whole, so a
+ * `Date` field is `'when'`, never `'when.getTime'`, and its error node has no
+ * children.
+ */
+export type Leaf =
+  | AnyFunction
+  | Date
+  | RegExp
+  | Blob
+  | Map<any, any>
+  | Set<any>
+  | WeakMap<any, any>
+  | WeakSet<any>
+  | Promise<any>;
+
+type Key<T> = keyof T & (string | number);
+
+/** Dot-notation string paths into T. Optional objects are traversed. */
+export type DeepKeyStrings<T> = T extends Leaf
   ? never
-  : T extends Array<infer U>
-    ? `${number}` | `${number}.${DeepKeyStrings<U>}`
+  : T extends readonly (infer U)[]
+    ? `${number}` | `${number}.${DeepKeyStrings<NonNullable<U>>}`
     : T extends object
       ? {
-          [K in keyof T & (string | number)]: T[K] extends object
-            ? `${K}` | `${K}.${DeepKeyStrings<T[K]>}`
-            : `${K}`;
-        }[keyof T & (string | number)]
+          [K in Key<T>]: NonNullable<T[K]> extends Leaf
+            ? `${K}`
+            : NonNullable<T[K]> extends object
+              ? `${K}` | `${K}.${DeepKeyStrings<NonNullable<T[K]>>}`
+              : `${K}`;
+        }[Key<T>]
       : never;
 
-// Array-based key paths
-export type DeepKeyTuples<T> = T extends AnyFunction
+/** Tuple paths into T, for example `['friends', 0, 'name']`. */
+export type DeepKeyTuples<T> = T extends Leaf
   ? never
-  : T extends Array<infer U>
-    ? [number] | [number, ...DeepKeyTuples<U>]
+  : T extends readonly (infer U)[]
+    ? [number] | [number, ...DeepKeyTuples<NonNullable<U>>]
     : T extends object
       ? {
-          [K in keyof T & (string | number)]: T[K] extends object
-            ? [K] | [K, ...DeepKeyTuples<T[K]>]
-            : [K];
-        }[keyof T & (string | number)]
+          [K in Key<T>]: NonNullable<T[K]> extends Leaf
+            ? [K]
+            : NonNullable<T[K]> extends object
+              ? [K] | [K, ...DeepKeyTuples<NonNullable<T[K]>>]
+              : [K];
+        }[Key<T>]
       : never;
 
-// Combined
+/** Every valid path into T, as a dotted string or a tuple. */
 export type DeepKeys<T> = DeepKeyStrings<T> | DeepKeyTuples<T>;
 
+/**
+ * The value at path P in T. When an object on the path is optional, the result
+ * includes `undefined`, which is what reading it at runtime can yield.
+ */
 export type DeepValue<
   T,
   P extends string | readonly (string | number)[],
-> = P extends string
-  ? DeepValueFromStringPath<T, P>
-  : P extends readonly [infer K, ...infer Rest]
-    ? K extends keyof T
-      ? Rest extends []
-        ? T[K]
-        : DeepValue<T[K], Extract<Rest, (string | number)[]>>
-      : T extends Array<infer U>
-        ? K extends number
-          ? DeepValue<U, Extract<Rest, (string | number)[]>>
+> = T extends null | undefined
+  ? undefined
+  : P extends string
+    ? DeepValueFromStringPath<T, P>
+    : P extends readonly [infer K, ...infer Rest]
+      ? K extends keyof T
+        ? Rest extends []
+          ? T[K]
+          : DeepValue<T[K], Extract<Rest, (string | number)[]>>
+        : T extends readonly (infer U)[]
+          ? K extends number
+            ? Rest extends []
+              ? U
+              : DeepValue<U, Extract<Rest, (string | number)[]>>
+            : never
           : never
-        : never
-    : T;
+      : T;
 
 type DeepValueFromStringPath<
   T,
@@ -54,14 +84,14 @@ type DeepValueFromStringPath<
 > = P extends `${infer K}.${infer Rest}`
   ? K extends keyof T
     ? DeepValue<T[K], Rest>
-    : T extends Array<infer U>
+    : T extends readonly (infer U)[]
       ? K extends `${number}`
         ? DeepValue<U, Rest>
         : never
       : never
   : P extends keyof T
     ? T[P]
-    : T extends Array<infer U>
+    : T extends readonly (infer U)[]
       ? P extends `${number}`
         ? U
         : never
@@ -178,16 +208,22 @@ export type BaseFormState<T> = {
 export type FormState<T> = BaseFormState<T> & FormComputed & FormActions<T>;
 
 /**
- * A utility type that recursively maps over the keys of an object T,
- * adding the properties of object O at each level.
- * Note the outer intersection with O to ensure O's properties are included at the top level as well.
+ * A utility type that recursively maps over the keys of an object T, adding
+ * the properties of O at each level (including the top level). Leaf values
+ * such as `Date` get O only.
  */
-export type Nested<T, O> = (T extends (infer U)[]
-  ? Record<number, Nested<NonNullable<U>, O>>
-  : T extends object
-    ? { [K in keyof T]?: Nested<NonNullable<T[K]>, O> }
-    : O) &
+export type Nested<T, O> = (IsAny<T> extends true
+  ? { [key: string]: any }
+  : T extends Leaf
+    ? unknown
+    : T extends readonly (infer U)[]
+      ? Record<number, Nested<NonNullable<U>, O>>
+      : T extends object
+        ? { [K in keyof T]?: Nested<NonNullable<T[K]>, O> }
+        : unknown) &
   O;
+
+type IsAny<T> = 0 extends 1 & T ? true : false;
 
 /**
  * Render props type for the FormController render prop.
@@ -199,7 +235,7 @@ export type Nested<T, O> = (T extends (infer U)[]
  * @param FormState - The type of the form state.
  * @param Context - The type of the context object.
  */
-export type FormControllerRenderProps<Value, FormState = any, Context = any> = {
+export type FormControllerRenderProps<Value, Form = any, Context = any> = {
   /** Reset the current form scope to its initial values or the supplied values. */
   reset: (values?: Value, options?: ResetOptions) => void;
   /** Clear touched state for the current form scope. */
@@ -224,7 +260,7 @@ export type FormControllerRenderProps<Value, FormState = any, Context = any> = {
    * onFormChange is a function that can be used to update the form state.
    * It can be a value or a function that returns a value.
    */
-  onFormChange: (form: FormState | ((form: FormState) => FormState)) => void;
+  onFormChange: (form: Form | ((form: Form) => Form)) => void;
   /**
    * The context object for the field. Evaluated from the contextSelector.
    */
@@ -313,3 +349,52 @@ export type FormControllerProps<
     useStore?: UseStoreHook;
   };
 };
+
+/** What a creator returns for a form: the values, and optionally the rest of the data. */
+export type FormInput<T> = BaseFormState<T>;
+
+type ValuesOf<F> = F extends { values: infer T } ? T : never;
+
+/** The store state `withForm` produces for a form object F: F plus flags and actions. */
+export type EnhancedForm<F> = F & FormComputed & FormActions<ValuesOf<F>>;
+
+/** T with the property at K replaced by V, keeping every other property and its modifiers. */
+type ReplaceKey<T, K, V> = { [P in keyof T]: P extends K ? V : T[P] };
+
+/** T with the value at path P (string or tuple) replaced by V. */
+export type ReplaceAt<T, P, V> = P extends readonly [infer H, ...infer R]
+  ? R extends []
+    ? ReplaceKey<T, H, V>
+    : ReplaceKey<T, H, ReplaceAt<T[H & keyof T], R, V>>
+  : P extends `${infer H}.${infer R}`
+    ? ReplaceKey<T, H, ReplaceAt<T[H & keyof T], R, V>>
+    : ReplaceKey<T, P, V>;
+
+/** A form state with the flags and actions removed: what a creator has to return for it. */
+export type RelaxedForm<F> = Omit<
+  F,
+  keyof FormComputed | keyof FormActions<any>
+>;
+
+/**
+ * What a creator must return to produce the store state S: S with every
+ * form-shaped object, at any depth, relaxed to its data.
+ */
+export type FormInputOf<S> =
+  S extends FormActions<any>
+    ? RelaxedForm<S>
+    : S extends Leaf
+      ? S
+      : S extends readonly (infer U)[]
+        ? readonly FormInputOf<U>[]
+        : S extends object
+          ? { [P in keyof S]: FormInputOf<S[P]> }
+          : S;
+
+/**
+ * The store state `withForm` produces from a creator returning I, with the
+ * form at K (or the root when K is undefined) enhanced with flags and actions.
+ */
+export type WithFormState<I, K = undefined> = [K] extends [undefined]
+  ? EnhancedForm<I>
+  : ReplaceAt<I, K, EnhancedForm<DeepValue<I, Extract<K, DeepKeys<I>>>>>;

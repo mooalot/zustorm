@@ -34,6 +34,10 @@ export default defineConfig({
     environment: 'jsdom', // Required for React testing
     globals: true, // Allows using `test`, `expect` globally
     setupFiles: 'tests/vitest.setup.ts', // Path to your setup file
+    typecheck: {
+      include: ['tests/**/*.test-d.ts'],
+      tsconfig: './tsconfig.tests.json',
+    },
     coverage: {
       include: ['src/**'],
       exclude: ['src/types.ts'],

@@ -371,7 +371,7 @@ Here is how it is done with the FormController:
 | `FormController`                            | Renders form fields with state binding                               |
 | `FormStoreProvider`                         | Provides form store context                                          |
 | `useFormStore()`                            | Access form store from context                                       |
-| `getDefaultForm(values)`                    | Returns default form state                                           |
+| `getDefaultForm(values)`                    | Returns `{ values, initialValues }`, optional helper                 |
 | `getFormApi(store, formPath)`               | Access deep form API methods                                         |
 | `getScopedFormApi(store, name)`             | Form store scoped to a field: slices, flags and actions at that path |
 | `createFormStoreProvider()`                 | Creates a FormStoreProvider component and hook                       |
@@ -397,9 +397,9 @@ Complete examples with styling and advanced features:
 
 ## TypeScript Compatibility
 
-This package's type definitions require **TypeScript 5.0 or higher** due to the use of `const` type parameters and other advanced type features.
+This package's type definitions require **TypeScript 5.4 or higher** due to the use of `const` type parameters, `NoInfer` and other advanced type features.
 
-Make sure you're using TypeScript 5.0+ to take full advantage of type safety and autocomplete.
+Make sure you're using TypeScript 5.4+ to take full advantage of type safety and autocomplete.
 
 ## Contributing
 

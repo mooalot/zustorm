@@ -63,7 +63,7 @@ describe('formatIssues', () => {
       user: { _errors: [], name: { _errors: ['First', 'Second'] } },
     });
     expect(getErrorMessages(tree)).toEqual(['Root', 'Tag', 'First', 'Second']);
-    expect(getErrorMessage(tree?.user)).toBe('First');
+    expect(getErrorMessage((tree as any)?.user)).toBe('First');
   });
 });
 
@@ -76,7 +76,7 @@ describe('computeFlags', () => {
     });
     expect(
       computeFlags({
-        values: {},
+        values: {} as any,
         dirty: { a: { _dirty: true } },
         touched: { b: { _touched: true } },
         errors: { _errors: [], a: { _errors: ['x'] } },

@@ -32,12 +32,13 @@
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
-    "test": "vitest",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.tests.json",
+    "test": "vitest --typecheck",
     "bench": "vitest bench --run",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"bench/**/*.{ts,tsx}\" README.md",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"tests/*.test-d.ts\" \"bench/**/*.{ts,tsx}\" README.md",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"bench/**/*.{ts,tsx}\" README.md",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:types": "vitest run --typecheck.only"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -75,7 +76,7 @@
     "zustand": ">=5.0.0"
   },
   "engines": {
-    "typescript": ">=5.0.0"
+    "typescript": ">=5.4.0"
   },
   "license": "MIT"
 }
