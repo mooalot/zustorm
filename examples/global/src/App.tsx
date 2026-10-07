@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { z } from 'zod';
 import { create } from 'zustand';
 import { FormController, withForm } from 'zustorm';
@@ -39,7 +40,7 @@ const useUserForm = create(
   )
 );
 
-const inputStyle = (invalid: boolean): React.CSSProperties => ({
+const inputStyle = (invalid: boolean): CSSProperties => ({
   width: '100%',
   padding: '8px',
   border: `1px solid ${invalid ? 'red' : 'gray'}`,

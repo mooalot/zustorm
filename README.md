@@ -443,6 +443,10 @@ Complete examples with styling and advanced features:
 - [Context Example](https://github.com/mooalot/zustorm/tree/main/examples/context)
 - [Array Handling Example](https://github.com/mooalot/zustorm/tree/main/examples/arrays)
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for release notes and migration steps.
+
 ## TypeScript Compatibility
 
 This package's type definitions require **TypeScript 5.4 or higher** due to the use of `const` type parameters, `NoInfer` and other advanced type features.

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import {
@@ -119,7 +119,7 @@ function UserForm() {
   );
 }
 
-const inputStyle = (invalid: boolean): React.CSSProperties => ({
+const inputStyle = (invalid: boolean): CSSProperties => ({
   width: '100%',
   padding: '8px',
   border: `1px solid ${invalid ? 'red' : 'gray'}`,
