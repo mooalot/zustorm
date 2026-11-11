@@ -15,9 +15,24 @@ export function runUntracked(store: object, update: () => void): void {
   else update();
 }
 
-/** Copies the hidden untracked-update hook from one store api to another. */
+/**
+ * Hidden store method installed by `withForm`. Applies `update` to the form's
+ * errors and to its record of manually set errors (`setError`, `setErrors`),
+ * which survive re-validation until their own field changes.
+ */
+export const WRITE_ERRORS = Symbol('zustorm.writeErrors');
+
+export type WriteErrors = (update: (errors: unknown) => unknown) => void;
+
+/** Writes manual errors through the owning `withForm`, if there is one. */
+export function getWriteErrors(store: object): WriteErrors | undefined {
+  return (store as any)[WRITE_ERRORS] as WriteErrors | undefined;
+}
+
+/** Copies the hidden `withForm` hooks from one store api to another. */
 export function forwardUntracked<T extends object>(from: object, to: T): T {
   return Object.assign(to, {
     [UNTRACKED_UPDATE]: (from as any)[UNTRACKED_UPDATE],
+    [WRITE_ERRORS]: (from as any)[WRITE_ERRORS],
   });
 }

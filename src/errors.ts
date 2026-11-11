@@ -127,6 +127,53 @@ export function setErrorMessages(
   });
 }
 
+/**
+ * Overlays manually set errors on the schema's errors. Where a manual node has
+ * messages of its own they replace the schema's at that node; everything else
+ * is merged. Returns undefined when the result holds no messages.
+ */
+export function mergeErrors(schema: unknown, manual: unknown): any {
+  if (!hasErrors(manual)) return schema;
+  const merge = (a: unknown, b: unknown): any => {
+    if (!isNode(b)) return a;
+    const base = isNode(a) ? a : { _errors: [] };
+    const result: Record<string, any> = { ...base };
+    const own = b._errors;
+    if (Array.isArray(own) && own.length > 0) result._errors = [...own];
+    for (const key in b) {
+      if (key !== '_errors' && hasErrors(b[key])) {
+        result[key] = merge(base[key], b[key]);
+      }
+    }
+    return result;
+  };
+  return merge(schema, manual);
+}
+
+/**
+ * Removes the manual errors a value change at `segments` invalidates: the
+ * subtree at that path and the own messages of every ancestor (the form's
+ * among them), since those fields changed too.
+ */
+export function dropErrorsAt(
+  errors: unknown,
+  segments: readonly string[]
+): any {
+  if (!isNode(errors)) return errors;
+  const own = errors._errors;
+  let next: Record<string, any> = errors;
+  if (Array.isArray(own) && own.length > 0) next = { ...next, _errors: [] };
+  if (segments.length === 0) return undefined;
+  const [head, ...rest] = segments;
+  if (!(head in next)) return next;
+  const child = rest.length === 0 ? undefined : dropErrorsAt(next[head], rest);
+  if (child === next[head]) return next;
+  next = next === errors ? { ...next } : next;
+  if (child === undefined) delete next[head];
+  else next[head] = child;
+  return next;
+}
+
 /** Splits `setError`'s overloaded arguments into a path and a message. */
 export function parseSetErrorArgs(
   args: readonly unknown[]

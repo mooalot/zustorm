@@ -161,7 +161,8 @@ export type FormActions<T> = {
   validate: () => boolean;
   /**
    * Replace the errors with the given tree, for example errors a server
-   * returned. They hold until the values change or `validate` runs.
+   * returned. Each error holds until its own field changes, `validate` runs
+   * or the errors are reset; edits to other fields keep it.
    */
   setErrors(errors: Errors<T> | undefined): void;
   /**

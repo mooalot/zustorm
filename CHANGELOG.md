@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed
+
+- `getInitialState()` of a scoped form API (`useFormController(store, name)`, `FormController` with a `name`, `getScopedFormApi`) now returns a cached object. React uses it as `getServerSnapshot`, and the fresh object on every call logged "The result of getServerSnapshot should be cached" during server rendering and hydration. ([#7](https://github.com/mooalot/zustorm/issues/7))
+- Errors written with `setError` or `setErrors` now hold until their own field changes, as documented. Before, any value change re-ran the schema over the whole form and dropped them, so editing an unrelated field cleared a server error that still applied. They are merged over the schema's errors and are cleared when their field (or a parent) is edited, or by `validate()`, `resetErrors()`, `reset()` or `setErrors(undefined)`. A message set on the form itself clears on any edit. ([#8](https://github.com/mooalot/zustorm/issues/8))
+
 ## 2.0.0
 
 ### Breaking changes

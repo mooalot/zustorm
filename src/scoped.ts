@@ -12,7 +12,7 @@ import {
   setErrorNode,
 } from './errors';
 import { computeFlags, createSubmitHandler } from './form';
-import { forwardUntracked, runUntracked } from './internal';
+import { forwardUntracked, getWriteErrors, runUntracked } from './internal';
 import {
   buildTouched,
   getPath,
@@ -151,11 +151,22 @@ export function getScopedFormApi<
 
   const getState = () => scopedFrom(store.getState());
 
-  const getInitialState = () => ({
-    ...getScopedFormState<S, K, V>(store.getInitialState(), path),
-    isSubmitting: store.getInitialState().isSubmitting,
-    ...actions,
-  });
+  // Cached for the same reason: React uses it as `getServerSnapshot`, which
+  // must return the same reference until the parent's initial state changes.
+  let lastParentInitial: FormState<S> | undefined;
+  let lastInitial: FormState<V> | undefined;
+  const getInitialState = (): FormState<V> => {
+    const parent = store.getInitialState();
+    if (lastInitial === undefined || parent !== lastParentInitial) {
+      lastParentInitial = parent;
+      lastInitial = {
+        ...getScopedFormState<S, K, V>(parent, path),
+        isSubmitting: parent.isSubmitting,
+        ...actions,
+      } as FormState<V>;
+    }
+    return lastInitial;
+  };
 
   const setState: StoreApi<FormState<V>>['setState'] = (partial) => {
     store.setState((root) => {
@@ -219,6 +230,16 @@ export function getScopedFormApi<
       }
     });
 
+  // Through `withForm` when it owns the store, so the errors are recorded as
+  // manual and survive re-validation; otherwise straight into the state.
+  const writeErrors = (update: (errors: unknown) => unknown) => {
+    const write = getWriteErrors(store);
+    if (write) return write(update);
+    store.setState(
+      (root) => ({ errors: update(root.errors) }) as Partial<FormState<S>>
+    );
+  };
+
   const actions: FormActions<V> = {
     reset: (values, options) =>
       runUntracked(store, () => {
@@ -238,26 +259,18 @@ export function getScopedFormApi<
     resetTouched: () =>
       setState({ touched: undefined } as Partial<FormState<V>>),
     resetDirty: () => setState({ dirty: undefined } as Partial<FormState<V>>),
-    resetErrors: () => setState({ errors: undefined } as Partial<FormState<V>>),
-    setErrors: (errors) =>
-      store.setState(
-        (root) =>
-          ({
-            errors: setErrorNode(root.errors, segments, errors),
-          }) as Partial<FormState<S>>
+    resetErrors: () =>
+      writeErrors((root) =>
+        getPath(root, segments) === undefined
+          ? root
+          : setErrorNode(root, segments, undefined)
       ),
+    setErrors: (errors) =>
+      writeErrors((root) => setErrorNode(root, segments, errors)),
     setError: (...args: unknown[]) => {
       const [path, message] = parseSetErrorArgs(args);
-      store.setState(
-        (root) =>
-          ({
-            errors: setErrorMessages(
-              root.errors,
-              [...segments, ...toPath(path as any)],
-              message
-            ),
-          }) as Partial<FormState<S>>
-      );
+      const target = [...segments, ...toPath(path as any)];
+      writeErrors((root) => setErrorMessages(root, target, message));
     },
     touchAll: () =>
       store.setState((root) => {

@@ -7,12 +7,19 @@ import { getUntracked } from 'proxy-compare';
 import { StateCreator, StoreApi, StoreMutatorIdentifier } from 'zustand';
 import { createComputer } from './computer';
 import {
+  dropErrorsAt,
   hasErrors,
+  mergeErrors,
   parseSetErrorArgs,
   setErrorMessages,
   validateValues,
 } from './errors';
-import { UNTRACKED_UPDATE, UntrackedUpdate } from './internal';
+import {
+  UNTRACKED_UPDATE,
+  UntrackedUpdate,
+  WRITE_ERRORS,
+  WriteErrors,
+} from './internal';
 import { FormSchema } from './schema';
 import {
   buildTouched,
@@ -250,8 +257,20 @@ function createFormEnhancer<S extends object>(
       }
     };
 
+    // Errors written with `setError`/`setErrors`. Re-validation merges them
+    // back in, so they hold until their own field changes, `validate()` runs,
+    // or the errors are reset.
+    let manualErrors: unknown = undefined;
+
     const withActions: StateCreator<S, any, any> = (set, get, api) => {
-      Object.assign(api, { [UNTRACKED_UPDATE]: untracked });
+      const writeErrors: WriteErrors = (update) => {
+        manualErrors = update(manualErrors);
+        updateForm((form) => ({ errors: update(form.errors) as any }));
+      };
+      Object.assign(api, {
+        [UNTRACKED_UPDATE]: untracked,
+        [WRITE_ERRORS]: writeErrors,
+      });
       const initialState = creator(set, get, api);
       const initialForm = readForm(initialState);
       if (!initialForm) return initialState;
@@ -269,7 +288,8 @@ function createFormEnhancer<S extends object>(
 
       const actions: FormActions<any> = {
         reset: (values, resetOptions) =>
-          untracked(() =>
+          untracked(() => {
+            manualErrors = undefined;
             updateForm((form) => ({
               values:
                 values === undefined
@@ -282,17 +302,20 @@ function createFormEnhancer<S extends object>(
               errors: undefined,
               touched: undefined,
               dirty: undefined,
-            }))
-          ),
+            }));
+          }),
         resetTouched: () => updateForm(() => ({ touched: undefined })),
         resetDirty: () => updateForm(() => ({ dirty: undefined })),
-        resetErrors: () => updateForm(() => ({ errors: undefined })),
-        setErrors: (errors) => updateForm(() => ({ errors })),
+        resetErrors: () => {
+          manualErrors = undefined;
+          updateForm(() => ({ errors: undefined }));
+        },
+        setErrors: (errors) => writeErrors(() => errors),
         setError: (...args: unknown[]) => {
           const [path, message] = parseSetErrorArgs(args);
-          updateForm((form) => ({
-            errors: setErrorMessages(form.errors, toPath(path as any), message),
-          }));
+          writeErrors((errors) =>
+            setErrorMessages(errors, toPath(path as any), message)
+          );
         },
         touchAll: () =>
           updateForm((form) => ({ touched: buildTouched(form.values) })),
@@ -301,6 +324,7 @@ function createFormEnhancer<S extends object>(
           const form = readForm(state);
           if (!form) return true;
           const errors = validateValues(getSchema?.(state), form.values);
+          manualErrors = undefined;
           updateForm(() => ({ errors }));
           return !errors;
         },
@@ -357,17 +381,21 @@ function createFormEnhancer<S extends object>(
       const valuesChanged = !prevForm || changedPaths.length > 0;
 
       let { touched, dirty } = form;
-      if (!resetRequested && previousValues && changedPaths.length > 0) {
+      if (resetRequested) {
+        manualErrors = undefined;
+      } else if (previousValues && changedPaths.length > 0) {
         for (const changed of changedPaths) {
           const changedSegments = toPath(changed);
           touched = markPath(touched, changedSegments, '_touched');
           dirty = markPath(dirty, changedSegments, '_dirty');
+          manualErrors = dropErrorsAt(manualErrors, changedSegments);
         }
       }
 
       // Errors are recomputed when the values change, on a reset, or when state
       // outside the form changes (a schema may depend on it). Otherwise they are
       // kept so `resetErrors` and `validate` results hold until the next edit.
+      // Manually set errors are laid over the schema's until their field changes.
       // Unchanged error nodes keep their identity so untouched fields do not
       // re-render.
       const shouldValidate =
@@ -376,7 +404,10 @@ function createFormEnhancer<S extends object>(
         resetRequested ||
         changedOutsideForm(state, prevState, formKey);
       const errors = shouldValidate
-        ? shareStructure(form.errors, validateValues(schema, form.values))
+        ? shareStructure(
+            form.errors,
+            mergeErrors(validateValues(schema, form.values), manualErrors)
+          )
         : form.errors;
 
       const nextForm = { ...rawForm, touched, dirty, errors };

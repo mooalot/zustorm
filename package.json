@@ -1,6 +1,6 @@
 {
   "name": "zustorm",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Form state for Zustand with Standard Schema validation (Zod, Valibot, ArkType, ...)",
   "author": "Gabriel Saunders",
   "repository": {

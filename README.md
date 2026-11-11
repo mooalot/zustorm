@@ -429,7 +429,7 @@ const isSubmitting = useStore(store, (state) => state.isSubmitting);
 
 #### Server errors
 
-When the server rejects a submission, write its errors into the form. `setError` sets the messages of one field and keeps every other error; with a single argument it sets a message on the form (or the controller's field) itself. `setErrors` replaces the whole tree. Either holds until the field is edited again or `validate()` runs, at which point the schema takes over.
+When the server rejects a submission, write its errors into the form. `setError` sets the messages of one field and keeps every other error; with a single argument it sets a message on the form (or the controller's field) itself. `setErrors` replaces the whole tree. Each error holds until its own field is edited, `validate()` runs or the errors are reset, at which point the schema takes over; editing a different field keeps it. A message set on the form itself clears on any edit.
 
 ```typescript
 const onSubmit = handleSubmit(async (values) => {

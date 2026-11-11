@@ -33,7 +33,7 @@ const createProfileStore = () =>
   createStore(withForm(values, { getSchema: () => schema }));
 
 describe('setErrors', () => {
-  it('replaces the errors and holds them until the values change', () => {
+  it('replaces the errors and holds each until its own field changes', () => {
     const store = createProfileStore();
     expect(store.getState().isValid).toBe(true);
 
@@ -50,8 +50,22 @@ describe('setErrors', () => {
     store.getState().resetTouched();
     expect(store.getState().errors?._errors).toEqual(['Server rejected']);
 
-    // An edit re-validates against the schema, which wins.
+    // Editing another field re-validates, but the email error is kept. The
+    // form-level message goes: every edit changes the form.
     store.setState({ values: { ...values, tags: ['x'] } });
+    expect(store.getState().errors?._errors).toEqual([]);
+    expect(store.getState().errors?.user?.email?._errors).toEqual([
+      'Email taken',
+    ]);
+
+    // Editing the email itself hands it back to the schema.
+    store.setState({
+      values: {
+        ...values,
+        tags: ['x'],
+        user: { ...values.user, email: 'b@x.io' },
+      },
+    });
     expect(store.getState().errors).toBeUndefined();
     expect(store.getState().isValid).toBe(true);
   });
