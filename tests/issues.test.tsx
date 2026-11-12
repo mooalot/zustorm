@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { create, createStore } from 'zustand';
 import {
+  createSchema,
   FormState,
   getFormApi,
   getScopedFormApi,
@@ -161,5 +162,38 @@ describe('#8 manually set errors hold until their own field changes', () => {
     expect(app.getState().form.errors?.email?._errors).toEqual(['Bad']);
     form.setState((f) => ({ values: { ...f.values, email: 'x' } }));
     expect(app.getState().form.errors).toBeUndefined();
+  });
+});
+
+describe('#11 createSchema parses string paths like the rest of the API', () => {
+  type Values = { items: { name: string }[]; 'a.b': string };
+  const schema = createSchema<Values>(() => [
+    { path: 'items[0].name', message: 'Bracket' },
+    { path: '["a.b"]', message: 'Dotted key' },
+    { path: 'items.1.name', message: 'Dotted' },
+  ]);
+
+  it('uses the same segments as toPath', () => {
+    const result = schema['~standard'].validate({}) as unknown as {
+      issues: { path: unknown }[];
+    };
+    expect(result.issues.map((i) => i.path)).toEqual([
+      ['items', '0', 'name'],
+      ['a.b'],
+      ['items', '1', 'name'],
+    ]);
+  });
+
+  it('puts the errors where setError would', () => {
+    const store = createStore(
+      withForm<Values>(
+        { items: [{ name: '' }, { name: '' }], 'a.b': '' },
+        { getSchema: () => schema }
+      )
+    );
+    const errors = store.getState().errors as any;
+    expect(errors.items[0].name._errors).toEqual(['Bracket']);
+    expect(errors.items[1].name._errors).toEqual(['Dotted']);
+    expect(errors['a.b']._errors).toEqual(['Dotted key']);
   });
 });

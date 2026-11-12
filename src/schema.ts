@@ -4,6 +4,7 @@
  * types below are the spec, copied in as it recommends, so no schema library
  * is a dependency. `createSchema` wraps any validation function in it.
  */
+import { toPath } from './paths';
 
 /** A path segment in an issue: a key, or an object carrying the key. */
 export type SchemaPathSegment = PropertyKey | { readonly key: PropertyKey };
@@ -42,7 +43,10 @@ export type InferSchemaOutput<S extends StandardSchema> = NonNullable<
 /** An issue as `createSchema` validators report it: the path may be a string. */
 export interface ValidationIssue {
   readonly message: string;
-  /** `'user.name'`, `['user', 'name']`, or omitted for the whole form. */
+  /**
+   * `'user.name'`, `'items[0]["a.b"]'`, `['user', 'name']`, or omitted for
+   * the whole form. Strings are parsed like every other path in the API.
+   */
   readonly path?: string | readonly PropertyKey[] | undefined;
 }
 
@@ -73,7 +77,7 @@ export function createSchema<T>(
                 message: issue.message,
                 path:
                   typeof issue.path === 'string'
-                    ? issue.path.split('.')
+                    ? toPath(issue.path)
                     : issue.path,
               })),
             }

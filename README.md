@@ -154,7 +154,7 @@ const useUserForm = create(
 );
 ```
 
-For rules that are not a schema, `createSchema` wraps a function that returns the issues it finds. Each issue has a `message` and an optional `path`, as a dotted string or an array of keys; leave the path out for a form-level error. This is the hook for JSON Schema validators such as Ajv, cross-field rules, or errors a server sent back:
+For rules that are not a schema, `createSchema` wraps a function that returns the issues it finds. Each issue has a `message` and an optional `path`, as a string (`'guests[0].name'`, parsed like every other path) or an array of keys; leave the path out for a form-level error. Prefer an array when keys may contain `.` or brackets. This is the hook for JSON Schema validators such as Ajv, cross-field rules, or errors a server sent back:
 
 ```typescript
 import { createSchema } from 'zustorm';
@@ -173,7 +173,11 @@ const schema = createSchema<Booking>((values) =>
   validate(values)
     ? []
     : validate.errors!.map((error) => ({
-        path: error.instancePath.split('/').filter(Boolean),
+        // instancePath is a JSON Pointer: split it, then unescape ~1 and ~0.
+        path: error.instancePath
+          .split('/')
+          .slice(1)
+          .map((key) => key.replace(/~1/g, '/').replace(/~0/g, '~')),
         message: error.message ?? 'Invalid',
       }))
 );

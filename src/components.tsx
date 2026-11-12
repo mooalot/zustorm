@@ -1,4 +1,9 @@
-import { DeepKeys, FormControllerProps } from './types';
+import {
+  DeepKeys,
+  DeepValue,
+  FormControllerProps,
+  FormControllerPropsFor,
+} from './types';
 import { useFormController } from './useFormController';
 
 /**
@@ -14,6 +19,19 @@ import { useFormController } from './useFormController';
  * @param options.useStore - Custom store hook to use instead of the default zustand useStore
  * @returns JSX element from the render prop
  */
+// Overloads for the same reason as `useFormController`: a generic wrapper gets
+// `DeepValue<T, K>` in the render prop without a cast.
+export function FormController<S, C>(
+  props: FormControllerPropsFor<S, C, S> & { name?: undefined }
+): JSX.Element;
+export function FormController<S, C, const K extends DeepKeys<S>>(
+  props: FormControllerPropsFor<S, C, DeepValue<S, K>> & { name: K }
+): JSX.Element;
+export function FormController<
+  S,
+  C,
+  const K extends DeepKeys<S> | undefined = undefined,
+>(props: FormControllerProps<S, C, K>): JSX.Element;
 export function FormController<
   S,
   C,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.2
+
+### Fixed
+
+- `useFormController` and `FormController` use overloads instead of a conditional return type, so a generic wrapper such as `function useField<T, K extends DeepKeys<T>>(store, name: K)` gets `DeepValue<T, K>` without a cast. Concrete call sites infer as before. The props type for a known value type is exported as `FormControllerPropsFor`. ([#9](https://github.com/mooalot/zustorm/issues/9))
+- `DeepKeys` descends into each member of a union field, so `'meta.owner'` is a valid path when `meta` is `string | { owner: string }`. Recursive types such as JSON values are supported: paths stop after 10 levels, and below a `string` index signature any deeper path is accepted, as a dotted string already was. ([#10](https://github.com/mooalot/zustorm/issues/10))
+- `createSchema` parses string issue paths with the same parser as the rest of the API, so `'items[0].name'` and `'["a.b"]'` resolve as they do in `setError`. The README's Ajv example now unescapes JSON Pointer segments (`~1`, `~0`). ([#11](https://github.com/mooalot/zustorm/issues/11))
+
 ## 2.0.1
 
 ### Fixed

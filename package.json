@@ -1,6 +1,6 @@
 {
   "name": "zustorm",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Form state for Zustand with Standard Schema validation (Zod, Valibot, ArkType, ...)",
   "author": "Gabriel Saunders",
   "repository": {
@@ -45,7 +45,7 @@
     "type-check": "tsc --noEmit && tsc -p tsconfig.tests.json && tsc -p tsconfig.examples.json",
     "test": "vitest --typecheck",
     "bench": "vitest bench --run",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"tests/*.test-d.ts\" \"bench/**/*.{ts,tsx}\" \"examples/*/src/*.tsx\" \"tests/project/src/*.tsx\" README.md",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"tests/*.test-d.{ts,tsx}\" \"bench/**/*.{ts,tsx}\" \"examples/*/src/*.tsx\" \"tests/project/src/*.tsx\" README.md",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/*.{ts,tsx}\" \"bench/**/*.{ts,tsx}\" \"examples/*/src/*.tsx\" \"tests/project/src/*.tsx\" README.md",
     "test:coverage": "vitest run --coverage",
     "test:types": "vitest run --typecheck.only",

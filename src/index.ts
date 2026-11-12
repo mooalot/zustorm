@@ -40,6 +40,7 @@ export type {
   SubmitEventLike,
   FormControllerRenderProps,
   FormControllerProps,
+  FormControllerPropsFor,
   UseFormControllerOptions,
   UseStoreHook,
   FormInput,

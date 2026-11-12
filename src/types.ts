@@ -20,38 +20,73 @@ export type Leaf =
 
 type Key<T> = keyof T & (string | number);
 
-/** Dot-notation string paths into T. Optional objects are traversed. */
-export type DeepKeyStrings<T> = T extends Leaf
+/**
+ * Recursion budget for paths: deep enough for any hand-written form, and the
+ * stop for recursive types such as JSON, which would otherwise never end.
+ */
+type PathDepth = 10;
+type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/**
+ * The string paths through a field of type V at key K. Distributes over V,
+ * so in `string | { owner: string }` the object member contributes its keys.
+ */
+type FieldKeyStrings<V, K extends string | number, D extends number> =
+  // Under a `string` index signature `${string}` already matches every deeper
+  // path, so recursing would only grow the union (exponentially, for JSON).
+  string extends K
+    ? `${K}`
+    : V extends Leaf
+      ? `${K}`
+      : V extends object
+        ? `${K}` | `${K}.${DeepKeyStrings<V, D>}`
+        : `${K}`;
+
+/** Dot-notation string paths into T. Optional objects and unions are traversed. */
+export type DeepKeyStrings<T, D extends number = PathDepth> = [D] extends [
+  never,
+]
   ? never
-  : T extends readonly (infer U)[]
-    ? `${number}` | `${number}.${DeepKeyStrings<NonNullable<U>>}`
-    : T extends object
-      ? {
-          [K in Key<T>]: NonNullable<T[K]> extends Leaf
-            ? `${K}`
-            : NonNullable<T[K]> extends object
-              ? `${K}` | `${K}.${DeepKeyStrings<NonNullable<T[K]>>}`
-              : `${K}`;
-        }[Key<T>]
-      : never;
+  : T extends Leaf
+    ? never
+    : T extends readonly (infer U)[]
+      ? FieldKeyStrings<NonNullable<U>, number, Prev[D]>
+      : T extends object
+        ? {
+            [K in Key<T>]-?: FieldKeyStrings<NonNullable<T[K]>, K, Prev[D]>;
+          }[Key<T>]
+        : never;
+
+/** The tuple paths through a field of type V at key K, distributing over V. */
+type FieldKeyTuples<V, K extends string | number, D extends number> =
+  // As with strings: under a `string` index signature any tail is accepted,
+  // the way `${string}` accepts any dotted path there.
+  string extends K
+    ? [K] | [K, ...(string | number)[]]
+    : V extends Leaf
+      ? [K]
+      : V extends object
+        ? [K] | [K, ...DeepKeyTuples<V, D>]
+        : [K];
 
 /** Tuple paths into T, for example `['friends', 0, 'name']`. */
-export type DeepKeyTuples<T> = T extends Leaf
+export type DeepKeyTuples<T, D extends number = PathDepth> = [D] extends [never]
   ? never
-  : T extends readonly (infer U)[]
-    ? [number] | [number, ...DeepKeyTuples<NonNullable<U>>]
-    : T extends object
-      ? {
-          [K in Key<T>]: NonNullable<T[K]> extends Leaf
-            ? [K]
-            : NonNullable<T[K]> extends object
-              ? [K] | [K, ...DeepKeyTuples<NonNullable<T[K]>>]
-              : [K];
-        }[Key<T>]
-      : never;
+  : T extends Leaf
+    ? never
+    : T extends readonly (infer U)[]
+      ? FieldKeyTuples<NonNullable<U>, number, Prev[D]>
+      : T extends object
+        ? {
+            [K in Key<T>]-?: FieldKeyTuples<NonNullable<T[K]>, K, Prev[D]>;
+          }[Key<T>]
+        : never;
 
 /** Every valid path into T, as a dotted string or a tuple. */
-export type DeepKeys<T> = DeepKeyStrings<T> | DeepKeyTuples<T>;
+export type DeepKeys<T> =
+  IsAny<T> extends true
+    ? string | (string | number)[]
+    : DeepKeyStrings<T> | DeepKeyTuples<T>;
 
 /**
  * The value at path P in T. When an object on the path is optional, the result
@@ -367,17 +402,17 @@ export type FormControllerProps<
   S,
   C,
   K extends DeepKeys<S> | undefined = undefined,
-> = {
+> = FormControllerPropsFor<
+  S,
+  C,
+  K extends DeepKeys<S> ? DeepValue<S, K> : S
+> & { name?: K };
+
+/** `FormController` props for a scope whose value has type V. */
+export type FormControllerPropsFor<S, C, V> = {
   store: StoreApi<FormState<S>>;
-  name?: K;
   contextSelector?: (state: S) => C;
-  render: (
-    props: FormControllerRenderProps<
-      K extends DeepKeys<S> ? DeepValue<S, K> : S,
-      S,
-      C
-    >
-  ) => JSX.Element;
+  render: (props: FormControllerRenderProps<V, S, C>) => JSX.Element;
   options?: {
     useStore?: UseStoreHook;
   };

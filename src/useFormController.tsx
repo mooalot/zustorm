@@ -39,6 +39,34 @@ const NOOP_STORE = {
  * @param options.contextSelector - Function to select additional context from the form values
  * @param options.useStore - Custom store hook to use instead of the default zustand useStore
  */
+// The whole form. Overloads rather than one conditional return type, so a
+// generic wrapper (`<T, K extends DeepKeys<T>>`) gets `DeepValue<T, K>` without
+// a cast: TypeScript cannot resolve a conditional on an unresolved `K`.
+export function useFormController<S, C = undefined>(
+  store: StoreApi<FormState<S>>,
+  name?: undefined,
+  options?: UseFormControllerOptions<S, C>
+): FormControllerRenderProps<S, S, C>;
+// A field at `name`.
+export function useFormController<
+  S,
+  C = undefined,
+  const K extends DeepKeys<S> = DeepKeys<S>,
+>(
+  store: StoreApi<FormState<S>>,
+  name: K,
+  options?: UseFormControllerOptions<S, C>
+): FormControllerRenderProps<DeepValue<S, K>, S, C>;
+// A name that may be undefined at runtime.
+export function useFormController<
+  S,
+  C = undefined,
+  const K extends DeepKeys<S> | undefined = undefined,
+>(
+  store: StoreApi<FormState<S>>,
+  name?: K,
+  options?: UseFormControllerOptions<S, C>
+): FormControllerRenderProps<K extends DeepKeys<S> ? DeepValue<S, K> : S, S, C>;
 export function useFormController<
   S,
   C = undefined,
